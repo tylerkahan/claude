@@ -1,1 +1,3 @@
 # claude
+
+Auto-deploy test.
