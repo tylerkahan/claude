@@ -4,85 +4,191 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shelby's Cookbook</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --pink-50:  #fdf2f8;
+      --pink-100: #fce7f3;
+      --pink-200: #fbcfe8;
+      --pink-300: #f9a8d4;
+      --pink-400: #f472b6;
+      --pink-500: #ec4899;
+      --pink-600: #db2777;
+      --pink-700: #be185d;
+      --rose-900: #4c0519;
+      --text:     #5b2040;
+      --muted:    #b07a99;
+      --white:    #ffffff;
+    }
+
     body {
-      font-family: 'Georgia', serif;
-      background: #fdf8f0;
-      color: #2c1810;
+      font-family: 'Nunito', sans-serif;
+      background: var(--pink-50);
+      color: var(--text);
       min-height: 100vh;
     }
 
+    /* ── Header ── */
     header {
-      background: #2c1810;
-      color: #fdf8f0;
-      padding: 24px 32px;
+      background: linear-gradient(135deg, var(--pink-600) 0%, var(--pink-500) 100%);
+      color: white;
+      padding: 28px 36px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
     }
 
-    header h1 { font-size: 28px; letter-spacing: 1px; }
-    header p { font-size: 13px; opacity: 0.6; margin-top: 4px; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-icon { font-size: 32px; }
 
-    .header-actions { display: flex; gap: 12px; }
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 30px;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
 
+    header p {
+      font-size: 13px;
+      opacity: 0.75;
+      margin-top: 3px;
+      font-weight: 300;
+      letter-spacing: 0.3px;
+    }
+
+    .header-actions { display: flex; gap: 10px; }
+
+    /* ── Buttons ── */
     button {
       cursor: pointer;
       border: none;
-      border-radius: 6px;
-      font-family: inherit;
+      border-radius: 50px;
+      font-family: 'Nunito', sans-serif;
       font-size: 14px;
-      padding: 10px 18px;
-      transition: opacity 0.15s;
+      font-weight: 600;
+      padding: 10px 22px;
+      transition: all 0.2s ease;
+      letter-spacing: 0.2px;
     }
-    button:hover { opacity: 0.85; }
 
-    .btn-primary { background: #c0392b; color: white; }
-    .btn-secondary { background: transparent; color: #fdf8f0; border: 1px solid rgba(255,255,255,0.4); }
-    .btn-ghost { background: transparent; color: #2c1810; border: 1px solid #ddd; }
-    .btn-danger { background: #e74c3c; color: white; }
+    .btn-primary {
+      background: white;
+      color: var(--pink-600);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .btn-primary:hover { background: var(--pink-50); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 
-    main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    .btn-secondary {
+      background: rgba(255,255,255,0.18);
+      color: white;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      backdrop-filter: blur(4px);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.28); }
 
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--pink-200);
+    }
+    .btn-ghost:hover { background: var(--pink-50); color: var(--pink-600); border-color: var(--pink-300); }
+
+    .btn-danger {
+      background: transparent;
+      color: #e11d48;
+      border: 1.5px solid #fecdd3;
+    }
+    .btn-danger:hover { background: #fff1f2; }
+
+    /* ── Main ── */
+    main { max-width: 1120px; margin: 0 auto; padding: 36px 24px; }
+
+    /* ── Search ── */
     .search-bar {
       display: flex;
       gap: 12px;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
+    }
+
+    .search-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      pointer-events: none;
     }
 
     .search-bar input {
-      flex: 1;
-      padding: 12px 16px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-family: inherit;
+      width: 100%;
+      padding: 13px 16px 13px 44px;
+      border: 1.5px solid var(--pink-200);
+      border-radius: 50px;
+      font-family: 'Nunito', sans-serif;
       font-size: 15px;
       background: white;
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(236,72,153,0.06);
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .search-bar input:focus { outline: none; border-color: #c0392b; }
+    .search-bar input::placeholder { color: var(--muted); }
+    .search-bar input:focus {
+      outline: none;
+      border-color: var(--pink-400);
+      box-shadow: 0 0 0 3px rgba(244,114,182,0.15);
+    }
 
     .filter-select {
-      padding: 12px 16px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 15px;
+      padding: 13px 20px;
+      border: 1.5px solid var(--pink-200);
+      border-radius: 50px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
       background: white;
+      color: var(--text);
       cursor: pointer;
+      box-shadow: 0 2px 8px rgba(236,72,153,0.06);
+      transition: border-color 0.2s;
+    }
+    .filter-select:focus { outline: none; border-color: var(--pink-400); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
     }
 
+    /* ── Empty State ── */
     .empty-state {
       text-align: center;
       padding: 80px 20px;
-      color: #999;
+      color: var(--muted);
     }
 
-    .empty-state h2 { font-size: 22px; margin-bottom: 8px; }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: var(--pink-400);
+    }
     .empty-state p { font-size: 15px; }
 
+    /* ── Recipe Grid ── */
     .recipe-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -91,49 +197,75 @@
 
     .recipe-card {
       background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 2px 12px rgba(236,72,153,0.08);
       cursor: pointer;
-      transition: box-shadow 0.15s, transform 0.15s;
-      border: 1px solid #eee;
+      transition: box-shadow 0.2s, transform 0.2s;
+      border: 1.5px solid var(--pink-100);
+      position: relative;
+      overflow: hidden;
     }
 
-    .recipe-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+    .recipe-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--pink-300), var(--pink-500));
+    }
+
+    .recipe-card:hover {
+      box-shadow: 0 8px 28px rgba(236,72,153,0.18);
+      transform: translateY(-3px);
+    }
 
     .recipe-card .category {
-      font-size: 11px;
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #c0392b;
-      font-family: sans-serif;
-      margin-bottom: 8px;
+      letter-spacing: 1.2px;
+      color: var(--pink-600);
+      background: var(--pink-100);
+      border-radius: 50px;
+      padding: 3px 10px;
+      margin-bottom: 10px;
     }
 
-    .recipe-card h3 { font-size: 18px; margin-bottom: 8px; }
-
-    .recipe-card .meta {
-      font-size: 13px;
-      color: #888;
-      font-family: sans-serif;
-      display: flex;
-      gap: 16px;
-      margin-top: 12px;
+    .recipe-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 19px;
+      margin-bottom: 8px;
+      line-height: 1.3;
+      color: var(--text);
     }
 
     .recipe-card .description {
-      font-size: 14px;
-      color: #666;
-      line-height: 1.5;
-      margin-top: 6px;
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: 4px;
     }
 
-    /* Modal */
+    .recipe-card .meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      gap: 14px;
+      margin-top: 14px;
+      font-weight: 500;
+    }
+
+    .recipe-card .meta span::before { margin-right: 4px; }
+
+    /* ── Overlay / Modal ── */
     .overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(76, 5, 25, 0.35);
+      backdrop-filter: blur(6px);
       z-index: 100;
       overflow-y: auto;
       padding: 40px 20px;
@@ -143,37 +275,53 @@
 
     .modal {
       background: white;
-      border-radius: 12px;
-      padding: 36px;
+      border-radius: 24px;
+      padding: 40px;
       width: 100%;
       max-width: 640px;
       position: relative;
+      box-shadow: 0 24px 60px rgba(236,72,153,0.18);
+      border: 1.5px solid var(--pink-100);
     }
 
-    .modal h2 { font-size: 22px; margin-bottom: 24px; }
+    .modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      margin-bottom: 26px;
+      color: var(--text);
+    }
 
     .modal .close {
       position: absolute;
-      top: 16px;
-      right: 20px;
-      font-size: 24px;
+      top: 18px;
+      right: 22px;
+      font-size: 22px;
       cursor: pointer;
-      color: #aaa;
-      background: none;
+      color: var(--muted);
+      background: var(--pink-50);
       border: none;
-      padding: 4px;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      padding: 0;
+      transition: background 0.15s;
     }
+    .modal .close:hover { background: var(--pink-100); color: var(--pink-600); }
 
+    /* ── Form ── */
     .form-group { margin-bottom: 18px; }
 
     .form-group label {
       display: block;
-      font-size: 13px;
-      font-family: sans-serif;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #555;
+      letter-spacing: 0.8px;
+      color: var(--muted);
       margin-bottom: 6px;
     }
 
@@ -181,17 +329,26 @@
     .form-group textarea,
     .form-group select {
       width: 100%;
-      padding: 10px 14px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-family: inherit;
+      padding: 11px 16px;
+      border: 1.5px solid var(--pink-200);
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
       font-size: 15px;
       background: white;
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: var(--pink-300); }
 
     .form-group input:focus,
     .form-group textarea:focus,
-    .form-group select:focus { outline: none; border-color: #c0392b; }
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--pink-400);
+      box-shadow: 0 0 0 3px rgba(244,114,182,0.15);
+    }
 
     .form-group textarea { resize: vertical; min-height: 100px; }
 
@@ -201,46 +358,163 @@
       display: flex;
       gap: 10px;
       justify-content: flex-end;
-      margin-top: 24px;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--pink-100);
     }
 
-    /* View modal */
-    .view-modal h2 { font-size: 26px; margin-bottom: 6px; }
-    .view-modal .view-category { color: #c0392b; font-family: sans-serif; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-    .view-modal .view-meta { display: flex; gap: 24px; font-family: sans-serif; font-size: 14px; color: #888; margin-bottom: 24px; }
-    .view-modal .view-description { font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-    .view-modal h3 { font-size: 16px; font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.5px; color: #555; margin-bottom: 12px; }
+    /* ── View Modal ── */
+    .view-modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    .view-modal .view-category {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--pink-600);
+      background: var(--pink-100);
+      border-radius: 50px;
+      padding: 4px 12px;
+      margin-bottom: 16px;
+    }
+
+    .view-modal .view-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 13.5px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-bottom: 22px;
+    }
+
+    .view-modal .view-description {
+      font-size: 16px;
+      color: #7a4060;
+      line-height: 1.7;
+      margin-bottom: 24px;
+      border-bottom: 1.5px solid var(--pink-100);
+      padding-bottom: 20px;
+    }
+
+    .view-modal h3 {
+      font-family: 'Nunito', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--pink-500);
+      margin-bottom: 12px;
+    }
+
     .view-modal .ingredients { margin-bottom: 24px; }
     .view-modal .ingredients ul { list-style: none; }
-    .view-modal .ingredients li { padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 15px; }
-    .view-modal .ingredients li::before { content: "·  "; color: #c0392b; }
-    .view-modal .instructions { margin-bottom: 24px; }
-    .view-modal .instructions ol { padding-left: 20px; }
-    .view-modal .instructions li { padding: 6px 0; font-size: 15px; line-height: 1.6; }
-    .view-modal .notes { background: #fdf8f0; border-radius: 8px; padding: 16px; font-size: 15px; line-height: 1.6; color: #666; }
-    .view-modal .view-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
 
-    .count { font-family: sans-serif; font-size: 14px; color: #888; margin-bottom: 16px; }
+    .view-modal .ingredients li {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--pink-50);
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .view-modal .ingredients li::before {
+      content: "✿";
+      color: var(--pink-400);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .view-modal .instructions { margin-bottom: 24px; }
+
+    .view-modal .instructions ol { padding-left: 0; list-style: none; counter-reset: steps; }
+
+    .view-modal .instructions li {
+      padding: 8px 0 8px 36px;
+      font-size: 15px;
+      line-height: 1.65;
+      position: relative;
+      counter-increment: steps;
+      border-bottom: 1px solid var(--pink-50);
+    }
+
+    .view-modal .instructions li::before {
+      content: counter(steps);
+      position: absolute;
+      left: 0;
+      top: 9px;
+      width: 22px;
+      height: 22px;
+      background: var(--pink-400);
+      color: white;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .view-modal .notes {
+      background: var(--pink-50);
+      border: 1.5px solid var(--pink-200);
+      border-radius: 14px;
+      padding: 16px 20px;
+      font-size: 15px;
+      line-height: 1.65;
+      color: #7a4060;
+    }
+
+    .view-modal .view-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1.5px solid var(--pink-100);
+      justify-content: flex-end;
+    }
+
+    /* ── Divider / sparkle ── */
+    .sparkle-divider {
+      text-align: center;
+      color: var(--pink-300);
+      font-size: 20px;
+      letter-spacing: 8px;
+      margin-bottom: 24px;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>Shelby's Cookbook</h1>
-    <p id="recipe-count-header"></p>
+  <div class="header-left">
+    <span class="header-icon">🌸</span>
+    <div>
+      <h1>Shelby's Cookbook</h1>
+      <p id="recipe-count-header">your personal recipe collection</p>
+    </div>
   </div>
   <div class="header-actions">
-    <button class="btn-secondary" onclick="exportRecipes()">Export JSON</button>
+    <button class="btn-secondary" onclick="exportRecipes()">✦ Export</button>
     <button class="btn-primary" onclick="openAddModal()">+ Add Recipe</button>
   </div>
 </header>
 
 <main>
   <div class="search-bar">
-    <input type="text" id="search" placeholder="Search recipes..." oninput="renderRecipes()">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Search your recipes…" oninput="renderRecipes()">
+    </div>
     <select class="filter-select" id="category-filter" onchange="renderRecipes()">
-      <option value="">All Categories</option>
+      <option value="">✦ All Categories</option>
       <option>Breakfast</option>
       <option>Lunch</option>
       <option>Dinner</option>
@@ -258,7 +532,7 @@
 <div class="overlay" id="form-overlay">
   <div class="modal">
     <button class="close" onclick="closeFormModal()">×</button>
-    <h2 id="form-title">Add Recipe</h2>
+    <h2 id="form-title">Add Recipe ✨</h2>
 
     <div class="form-group">
       <label>Recipe Name *</label>
@@ -281,7 +555,7 @@
       </div>
       <div class="form-group">
         <label>Servings</label>
-        <input type="text" id="f-servings" placeholder="e.g. 4">
+        <input type="text" id="f-servings" placeholder="e.g. 4 people">
       </div>
     </div>
 
@@ -298,7 +572,7 @@
 
     <div class="form-group">
       <label>Description</label>
-      <textarea id="f-description" placeholder="A short description of the dish..."></textarea>
+      <textarea id="f-description" placeholder="A short, sweet description of the dish…"></textarea>
     </div>
 
     <div class="form-group">
@@ -312,13 +586,13 @@
     </div>
 
     <div class="form-group">
-      <label>Notes</label>
-      <textarea id="f-notes" placeholder="Tips, variations, substitutions..."></textarea>
+      <label>Notes & Tips</label>
+      <textarea id="f-notes" placeholder="Tips, variations, substitutions…"></textarea>
     </div>
 
     <div class="form-actions">
       <button class="btn-ghost" onclick="closeFormModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveRecipe()">Save Recipe</button>
+      <button class="btn-primary" style="background:var(--pink-500);color:white;" onclick="saveRecipe()">Save Recipe 🌸</button>
     </div>
   </div>
 </div>
@@ -349,23 +623,27 @@
       return matchSearch && matchCat;
     });
 
-    document.getElementById('recipe-count-header').textContent =
-      `${recipes.length} recipe${recipes.length !== 1 ? 's' : ''}`;
+    const countEl = document.getElementById('recipe-count-header');
+    countEl.textContent = recipes.length === 0
+      ? 'your personal recipe collection'
+      : `${recipes.length} recipe${recipes.length !== 1 ? 's' : ''} saved with love`;
 
     const grid = document.getElementById('recipe-grid');
 
     if (recipes.length === 0) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🍰</div>
         <h2>No recipes yet</h2>
-        <p>Click "+ Add Recipe" to start building your cookbook.</p>
+        <p>Click "+ Add Recipe" to start your cookbook.</p>
       </div>`;
       return;
     }
 
     if (filtered.length === 0) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-        <h2>No matches</h2>
-        <p>Try a different search or category.</p>
+        <div class="empty-icon">🔍</div>
+        <h2>No matches found</h2>
+        <p>Try a different search term or category.</p>
       </div>`;
       return;
     }
@@ -376,9 +654,9 @@
         <h3>${r.name}</h3>
         ${r.description ? `<div class="description">${r.description}</div>` : ''}
         <div class="meta">
-          ${r.servings ? `<span>Serves ${r.servings}</span>` : ''}
-          ${r.prep ? `<span>Prep ${r.prep}</span>` : ''}
-          ${r.cook ? `<span>Cook ${r.cook}</span>` : ''}
+          ${r.servings ? `<span>🍽 ${r.servings}</span>` : ''}
+          ${r.prep ? `<span>⏱ ${r.prep} prep</span>` : ''}
+          ${r.cook ? `<span>🔥 ${r.cook} cook</span>` : ''}
         </div>
       </div>
     `).join('');
@@ -386,7 +664,7 @@
 
   function openAddModal() {
     editingId = null;
-    document.getElementById('form-title').textContent = 'Add Recipe';
+    document.getElementById('form-title').textContent = 'Add Recipe ✨';
     ['name','category','servings','prep','cook','description','ingredients','instructions','notes']
       .forEach(f => { const el = document.getElementById('f-'+f); el.value = ''; });
     document.getElementById('form-overlay').classList.add('open');
@@ -440,17 +718,17 @@
       <div class="view-category">${r.category || 'Uncategorized'}</div>
       <h2>${r.name}</h2>
       <div class="view-meta">
-        ${r.servings ? `<span>Serves ${r.servings}</span>` : ''}
-        ${r.prep ? `<span>Prep ${r.prep}</span>` : ''}
-        ${r.cook ? `<span>Cook ${r.cook}</span>` : ''}
+        ${r.servings ? `<span>🍽 ${r.servings}</span>` : ''}
+        ${r.prep ? `<span>⏱ Prep ${r.prep}</span>` : ''}
+        ${r.cook ? `<span>🔥 Cook ${r.cook}</span>` : ''}
       </div>
       ${r.description ? `<div class="view-description">${r.description}</div>` : ''}
-      ${ingredients ? `<div class="ingredients"><h3>Ingredients</h3><ul>${ingredients}</ul></div>` : ''}
-      ${instructions ? `<div class="instructions"><h3>Instructions</h3><ol>${instructions}</ol></div>` : ''}
-      ${r.notes ? `<h3>Notes</h3><div class="notes">${r.notes}</div>` : ''}
+      ${ingredients ? `<div class="ingredients"><h3>✦ Ingredients</h3><ul>${ingredients}</ul></div>` : ''}
+      ${instructions ? `<div class="instructions"><h3>✦ Instructions</h3><ol>${instructions}</ol></div>` : ''}
+      ${r.notes ? `<h3>✦ Notes & Tips</h3><div class="notes">${r.notes}</div>` : ''}
       <div class="view-actions">
         <button class="btn-danger" onclick="deleteRecipe('${r.id}')">Delete</button>
-        <button class="btn-ghost" onclick="editRecipe('${r.id}')">Edit</button>
+        <button class="btn-ghost" onclick="editRecipe('${r.id}')">Edit Recipe</button>
       </div>
     `;
 
@@ -466,7 +744,7 @@
     if (!r) return;
     closeViewModal();
     editingId = id;
-    document.getElementById('form-title').textContent = 'Edit Recipe';
+    document.getElementById('form-title').textContent = 'Edit Recipe ✨';
     document.getElementById('f-name').value = r.name;
     document.getElementById('f-category').value = r.category || '';
     document.getElementById('f-servings').value = r.servings || '';
@@ -490,12 +768,11 @@
     const blob = new Blob([JSON.stringify(recipes, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'my-cookbook.json';
+    a.download = 'shelbys-cookbook.json';
     a.click();
   }
 
   renderRecipes();
 </script>
-
 </body>
 </html>
