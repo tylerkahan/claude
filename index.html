@@ -575,6 +575,20 @@
     .grocery-empty { text-align: center; padding: 36px 16px; color: var(--muted); font-size: 13px; }
     .grocery-empty .gi { font-size: 32px; margin-bottom: 8px; }
 
+    /* ── Pasta canvas ── */
+    #pasta-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    header, main, .overlay, #timer-fab, #timer-panel, #grocery-fab, #grocery-panel {
+      position: relative;
+      z-index: 1;
+    }
+
     /* ── Print ── */
     @media print {
       header, .search-row, .cat-row, .tag-bar, .controls-row,
@@ -587,6 +601,8 @@
   </style>
 </head>
 <body>
+
+<canvas id="pasta-canvas"></canvas>
 
 <!-- ══ HEADER ══ -->
 <header>
@@ -1242,8 +1258,75 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 // ── Init ────────────────────────────────
 renderGrocery();
 renderRecipes();
-// default "All" pill active
 document.querySelector('.cat-pill[data-cat=""]').classList.add('active');
+
+// ── Floating Pasta Shells ───────────────
+(function() {
+  const canvas = document.getElementById('pasta-canvas');
+  const ctx = canvas.getContext('2d');
+
+  const SHELLS = ['🐚','🐚','🐚','🐚','🐚','🌸','🐚','🐚'];
+  const COUNT  = 28;
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+
+  function makeShell(atBottom) {
+    return {
+      emoji:      SHELLS[Math.floor(Math.random() * SHELLS.length)],
+      x:          rand(0, window.innerWidth),
+      y:          atBottom ? rand(window.innerHeight, window.innerHeight + 200) : rand(-200, window.innerHeight),
+      size:       rand(14, 30),
+      speedY:     rand(0.25, 0.65),
+      swayAmp:    rand(18, 55),
+      swayFreq:   rand(0.0008, 0.002),
+      swayPhase:  rand(0, Math.PI * 2),
+      rot:        rand(0, Math.PI * 2),
+      rotSpeed:   rand(-0.012, 0.012),
+      opacity:    rand(0.10, 0.22),
+    };
+  }
+
+  const shells = Array.from({ length: COUNT }, () => makeShell(false));
+
+  function draw(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    shells.forEach(s => {
+      // move up
+      s.y       -= s.speedY;
+      s.rot     += s.rotSpeed;
+      // horizontal sway
+      const sway = Math.sin(timestamp * s.swayFreq + s.swayPhase) * s.swayAmp;
+
+      // recycle when off top
+      if (s.y < -60) {
+        const fresh = makeShell(true);
+        Object.assign(s, fresh);
+      }
+
+      ctx.save();
+      ctx.globalAlpha = s.opacity;
+      ctx.translate(s.x + sway, s.y);
+      ctx.rotate(s.rot);
+      ctx.font = `${s.size}px serif`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.emoji, 0, 0);
+      ctx.restore();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+})();
 </script>
 </body>
 </html>
