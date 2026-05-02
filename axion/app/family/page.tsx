@@ -59,19 +59,14 @@ export default function FamilyPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#03040d' }}>
       <Sidebar email={user?.email} />
-      <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
-          <div>
-            <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '28px', fontWeight: 800, color: '#fff' }}>Family Access</h1>
-            <p style={{ color: '#6b7ab8', fontSize: '14px', marginTop: '4px' }}>Control who can access your estate information and when</p>
-          </div>
-          <button onClick={() => setShowForm(!showForm)} style={{
-            padding: '11px 22px', background: 'linear-gradient(135deg,#0055ff,#00aaff)',
-            border: 'none', borderRadius: '10px', color: '#fff', fontSize: '14px',
-            fontWeight: 700, cursor: 'pointer', boxShadow: '0 0 20px rgba(0,120,255,0.3)'
-          }}>+ Add Member</button>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '16px', backdropFilter: 'blur(20px)' }}>
+          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Family Access</span>
+          <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Trusted contacts & access control</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setShowForm(!showForm)} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Member</button>
         </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
 
         {/* Info banner */}
         <div style={{ background: 'rgba(0,100,255,0.06)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '14px', padding: '18px 22px', marginBottom: '24px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
@@ -159,6 +154,7 @@ export default function FamilyPage() {
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   )

@@ -83,32 +83,22 @@ export default function VaultPage() {
       <Sidebar email={user?.email} />
 
       {/* Main */}
-      <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <div>
-            <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 800, color: '#fff' }}>Document Vault</h1>
-            <p style={{ color: '#6b7ab8', fontSize: '14px', marginTop: '4px' }}>{documents.length} document{documents.length !== 1 ? 's' : ''} stored · 256-bit encrypted</p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <select value={category} onChange={e => setCategory(e.target.value)} style={{
-              padding: '9px 12px', background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px',
-              color: '#e8eaf6', fontSize: '13px', cursor: 'pointer'
-            }}>
-              {CATEGORIES.map(c => <option key={c} style={{ background: '#060818' }}>{c}</option>)}
-            </select>
-            <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
-              padding: '10px 20px', background: 'linear-gradient(135deg, #0055ff, #00aaff)',
-              border: 'none', borderRadius: '10px', color: '#fff',
-              fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 0 20px rgba(0,120,255,0.3)'
-            }}>
-              {uploading ? 'Uploading...' : '+ Upload'}
-            </button>
-            <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.jpg,.png" style={{ display: 'none' }}
-              onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} />
-          </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Top bar */}
+        <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '12px', backdropFilter: 'blur(20px)' }}>
+          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Document Vault</span>
+          <span style={{ fontSize: '12px', color: '#6b7ab8' }}>{documents.length} file{documents.length !== 1 ? 's' : ''} · 256-bit encrypted</span>
+          <div style={{ flex: 1 }} />
+          <select value={category} onChange={e => setCategory(e.target.value)} style={{ padding: '7px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#e8eaf6', fontSize: '13px', cursor: 'pointer' }}>
+            {CATEGORIES.map(c => <option key={c} style={{ background: '#060818' }}>{c}</option>)}
+          </select>
+          <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            {uploading ? 'Uploading...' : '↑ Upload'}
+          </button>
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.doc,.jpg,.png" style={{ display: 'none' }}
+            onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} />
         </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
 
         {/* Drop zone */}
         <div
@@ -164,6 +154,7 @@ export default function VaultPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   )

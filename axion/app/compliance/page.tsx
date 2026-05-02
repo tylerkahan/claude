@@ -76,12 +76,12 @@ export default function CompliancePage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#03040d' }}>
       <Sidebar email={user?.email} />
-      <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '28px', fontWeight: 800, color: '#fff' }}>Compliance</h1>
-          <p style={{ color: '#6b7ab8', fontSize: '14px', marginTop: '4px' }}>Estate readiness checklist — track what's done and what needs attention</p>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', backdropFilter: 'blur(20px)' }}>
+          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Compliance</span>
+          <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '10px' }}>Estate readiness checklist</span>
         </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
 
         {/* Score cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
@@ -141,6 +141,7 @@ export default function CompliancePage() {
               })}
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

@@ -57,12 +57,12 @@ export default function SettingsPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#03040d' }}>
       <Sidebar email={user?.email} />
-      <div style={{ flex: 1, padding: '40px', overflowY: 'auto', maxWidth: '720px' }}>
-
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '28px', fontWeight: 800, color: '#fff' }}>Settings</h1>
-          <p style={{ color: '#6b7ab8', fontSize: '14px', marginTop: '4px' }}>Manage your account and profile information</p>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', backdropFilter: 'blur(20px)' }}>
+          <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Settings</span>
+          <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '10px' }}>Account & profile</span>
         </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', maxWidth: '720px' }}>
 
         {/* Profile section */}
         <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '28px', marginBottom: '20px' }}>
@@ -131,6 +131,7 @@ export default function SettingsPage() {
             padding: '10px 24px', background: 'transparent', border: '1px solid rgba(255,60,60,0.3)', borderRadius: '8px',
             color: '#ff6666', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
           }}>Delete Account</button>
+        </div>
         </div>
       </div>
     </div>
