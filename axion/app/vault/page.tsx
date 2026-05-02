@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Sidebar from '@/components/Sidebar'
 
 const CATEGORIES = ['Will', 'Trust', 'Power of Attorney', 'Insurance', 'Property Deed', 'Tax Return', 'Other']
 
@@ -80,29 +80,7 @@ export default function VaultPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#03040d' }}>
-
-      {/* Sidebar */}
-      <div style={{ width: '240px', flexShrink: 0, background: 'rgba(8,14,40,0.9)', borderRight: '1px solid rgba(0,100,255,0.12)', display: 'flex', flexDirection: 'column', padding: '24px 0' }}>
-        <div style={{ padding: '0 20px 28px', fontFamily: "'Space Grotesk', sans-serif", fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '.07em', borderBottom: '1px solid rgba(0,100,255,0.1)' }}>AXION</div>
-        <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {[
-            { label: 'Dashboard', href: '/dashboard', active: false },
-            { label: 'Document Vault', href: '/vault', active: true },
-            { label: 'Net Worth', href: '/networth', active: false },
-            { label: 'Beneficiaries', href: '/beneficiaries', active: false },
-          ].map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
-              borderRadius: '10px', textDecoration: 'none',
-              background: item.active ? 'rgba(0,100,255,0.15)' : 'transparent',
-              color: item.active ? '#fff' : '#6b7ab8', fontSize: '14px',
-              fontWeight: item.active ? 600 : 400,
-              border: item.active ? '1px solid rgba(0,100,255,0.25)' : '1px solid transparent',
-            }}>{item.label}</Link>
-          ))}
-        </nav>
-        <div style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid rgba(0,100,255,0.1)', fontSize: '12px', color: '#6b7ab8' }}>{user?.email}</div>
-      </div>
+      <Sidebar email={user?.email} />
 
       {/* Main */}
       <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>

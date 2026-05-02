@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Sidebar from '@/components/Sidebar'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -9,48 +10,17 @@ export default async function DashboardPage() {
 
   const { data: documents } = await supabase.from('documents').select('*').eq('user_id', user.id)
   const { data: assets } = await supabase.from('assets').select('*').eq('user_id', user.id)
+  const { data: beneficiaries } = await supabase.from('beneficiaries').select('*').eq('user_id', user.id)
+  const { data: digitalAssets } = await supabase.from('digital_assets').select('*').eq('user_id', user.id)
 
   const totalValue = assets?.reduce((sum, a) => sum + (a.value || 0), 0) ?? 0
+  const totalDigital = digitalAssets?.reduce((sum, a) => sum + (a.estimated_value || 0), 0) ?? 0
   const docCount = documents?.length ?? 0
-
-  const navItems = [
-    { label: 'Dashboard', href: '/dashboard', icon: '⬛', active: true },
-    { label: 'Document Vault', href: '/vault', icon: '🔒', active: false },
-    { label: 'Net Worth', href: '/networth', icon: '📈', active: false },
-    { label: 'Beneficiaries', href: '/beneficiaries', icon: '👥', active: false },
-  ]
+  const beneficiaryCount = beneficiaries?.length ?? 0
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#03040d' }}>
-
-      {/* Sidebar */}
-      <div style={{
-        width: '240px', flexShrink: 0,
-        background: 'rgba(8,14,40,0.9)', borderRight: '1px solid rgba(0,100,255,0.12)',
-        display: 'flex', flexDirection: 'column', padding: '24px 0'
-      }}>
-        <div style={{ padding: '0 20px 28px', fontFamily: "'Space Grotesk', sans-serif", fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '.07em', borderBottom: '1px solid rgba(0,100,255,0.1)' }}>
-          AXION
-        </div>
-        <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {navItems.map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 12px', borderRadius: '10px', textDecoration: 'none',
-              background: item.active ? 'rgba(0,100,255,0.15)' : 'transparent',
-              color: item.active ? '#fff' : '#6b7ab8',
-              fontSize: '14px', fontWeight: item.active ? 600 : 400,
-              border: item.active ? '1px solid rgba(0,100,255,0.25)' : '1px solid transparent',
-              transition: 'all .15s'
-            }}>
-              <span>{item.icon}</span> {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid rgba(0,100,255,0.1)' }}>
-          <div style={{ fontSize: '12px', color: '#6b7ab8' }}>{user.email}</div>
-        </div>
-      </div>
+      <Sidebar email={user.email!} />
 
       {/* Main */}
       <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
@@ -60,56 +30,70 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
-          <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px' }}>
-            <div style={{ fontSize: '12px', color: '#6b7ab8', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Total Estate Value</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '32px', fontWeight: 800, background: 'linear-gradient(135deg, #fff, #00aaff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              ${totalValue.toLocaleString()}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+          {[
+            { label: 'Total Estate Value', value: `$${(totalValue + totalDigital).toLocaleString()}`, color: '#00aaff' },
+            { label: 'Documents Stored', value: String(docCount), color: '#6644ff' },
+            { label: 'Beneficiaries', value: String(beneficiaryCount), color: '#00cc66' },
+            { label: 'Estate Health', value: docCount > 0 && beneficiaryCount > 0 ? 'Good' : 'Needs Setup', color: docCount > 0 && beneficiaryCount > 0 ? '#00cc66' : '#ffaa00' },
+          ].map(card => (
+            <div key={card.label} style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px' }}>
+              <div style={{ fontSize: '12px', color: '#6b7ab8', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{card.label}</div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '30px', fontWeight: 800, color: card.color }}>{card.value}</div>
             </div>
-          </div>
-          <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px' }}>
-            <div style={{ fontSize: '12px', color: '#6b7ab8', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Documents Stored</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '32px', fontWeight: 800, background: 'linear-gradient(135deg, #fff, #00aaff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              {docCount}
-            </div>
-          </div>
-          <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px' }}>
-            <div style={{ fontSize: '12px', color: '#6b7ab8', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Estate Health</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '32px', fontWeight: 800, color: docCount > 0 ? '#00cc66' : '#ffaa00' }}>
-              {docCount > 0 ? 'Good' : 'Setup needed'}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Quick actions */}
-        <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '28px' }}>
+        <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '28px', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '16px' }}>Quick Actions</h2>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link href="/vault" style={{
-              padding: '12px 20px', background: 'linear-gradient(135deg, #0055ff, #00aaff)',
-              borderRadius: '10px', color: '#fff', textDecoration: 'none',
-              fontSize: '14px', fontWeight: 700
-            }}>
-              + Upload Document
-            </Link>
-            <Link href="/networth" style={{
-              padding: '12px 20px', background: 'transparent',
-              border: '1px solid rgba(0,100,255,0.25)',
-              borderRadius: '10px', color: '#6b7ab8', textDecoration: 'none',
-              fontSize: '14px', fontWeight: 600
-            }}>
-              Add Asset
-            </Link>
-            <Link href="/beneficiaries" style={{
-              padding: '12px 20px', background: 'transparent',
-              border: '1px solid rgba(0,100,255,0.25)',
-              borderRadius: '10px', color: '#6b7ab8', textDecoration: 'none',
-              fontSize: '14px', fontWeight: 600
-            }}>
-              Add Beneficiary
-            </Link>
+            {[
+              { href: '/vault', label: '+ Upload Document', primary: true },
+              { href: '/networth', label: 'Add Asset', primary: false },
+              { href: '/beneficiaries', label: 'Add Beneficiary', primary: false },
+              { href: '/digital', label: 'Add Digital Asset', primary: false },
+              { href: '/compliance', label: 'View Checklist', primary: false },
+            ].map(action => (
+              <Link key={action.href} href={action.href} style={{
+                padding: '12px 20px',
+                background: action.primary ? 'linear-gradient(135deg, #0055ff, #00aaff)' : 'transparent',
+                border: action.primary ? 'none' : '1px solid rgba(0,100,255,0.25)',
+                borderRadius: '10px', color: action.primary ? '#fff' : '#6b7ab8',
+                textDecoration: 'none', fontSize: '14px', fontWeight: action.primary ? 700 : 600
+              }}>
+                {action.label}
+              </Link>
+            ))}
           </div>
         </div>
+
+        {/* Getting started / checklist preview */}
+        {docCount === 0 && (
+          <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(255,170,0,0.2)', borderRadius: '16px', padding: '28px' }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '24px' }}>🚀</span>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Get started with Axion</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    { done: docCount > 0, label: 'Upload your first document (will, trust, or insurance policy)', href: '/vault' },
+                    { done: (assets?.length ?? 0) > 0, label: 'Add your assets to track your net worth', href: '/networth' },
+                    { done: beneficiaryCount > 0, label: 'Add your beneficiaries and key contacts', href: '/beneficiaries' },
+                    { done: (digitalAssets?.length ?? 0) > 0, label: 'Catalog your digital assets and accounts', href: '/digital' },
+                  ].map((step, i) => (
+                    <Link key={i} href={step.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+                      <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: step.done ? '#00cc66' : 'rgba(0,100,255,0.15)', border: step.done ? '2px solid #00cc66' : '2px solid rgba(0,100,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {step.done && <span style={{ color: '#fff', fontSize: '10px', fontWeight: 700 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: '13px', color: step.done ? '#4a5578' : '#6b7ab8', textDecoration: step.done ? 'line-through' : 'none' }}>{step.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
