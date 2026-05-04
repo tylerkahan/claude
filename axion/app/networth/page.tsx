@@ -182,20 +182,8 @@ export default function NetWorthPage() {
           {/* Add form */}
           {showForm && (
             <div style={{ background: 'rgba(8,14,40,0.9)', border: '1px solid rgba(0,100,255,0.25)', borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '18px' }}>Add Manual Asset</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '18px' }}>Add Asset</h3>
               <form onSubmit={addAsset} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                {[
-                  { label: 'Asset Name', key: 'name', placeholder: 'e.g. Primary Home', type: 'text' },
-                  { label: 'Current Value ($)', key: 'value', placeholder: '500000', type: 'number' },
-                  { label: 'Institution (optional)', key: 'institution', placeholder: 'e.g. Chase, Fidelity', type: 'text' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{f.label}</label>
-                    <input type={f.type} required={f.key === 'name' || f.key === 'value'} placeholder={f.placeholder} value={(form as any)[f.key]}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
-                  </div>
-                ))}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Category</label>
                   <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
@@ -203,12 +191,48 @@ export default function NetWorthPage() {
                     {MANUAL_CATEGORIES.map(c => <option key={c} style={{ background: '#060818' }}>{c}</option>)}
                   </select>
                 </div>
-                <div style={{ gridColumn: '1/-1', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                  <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-                  <button type="submit" disabled={saving} style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-                    {saving ? 'Saving...' : 'Add Asset'}
-                  </button>
-                </div>
+
+                {/* Crypto redirect — show instead of the rest of the form */}
+                {form.category === 'Crypto' ? (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <div style={{ background: 'rgba(247,147,26,0.07)', border: '1px solid rgba(247,147,26,0.25)', borderRadius: '12px', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <span style={{ fontSize: '28px' }}>₿</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '3px' }}>Use live crypto prices</div>
+                        <div style={{ fontSize: '12px', color: '#6b7ab8', lineHeight: '1.5' }}>
+                          Add your holdings on the Integrations page — prices update automatically from CoinGecko so your estate value stays accurate.
+                        </div>
+                      </div>
+                      <Link href="/integrations" style={{ padding: '9px 18px', background: 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.35)', borderRadius: '8px', color: '#f7931a', fontSize: '13px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Add Crypto →
+                      </Link>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                      <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {[
+                      { label: 'Asset Name', key: 'name', placeholder: form.category === 'Real Estate' ? 'e.g. 123 Oak Drive' : form.category === 'Investment Account' ? 'e.g. Fidelity IRA' : 'e.g. Primary Checking', type: 'text' },
+                      { label: 'Current Value ($)', key: 'value', placeholder: '500000', type: 'number' },
+                      { label: 'Institution (optional)', key: 'institution', placeholder: 'e.g. Chase, Fidelity', type: 'text' },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{f.label}</label>
+                        <input type={f.type} required={f.key === 'name' || f.key === 'value'} placeholder={f.placeholder} value={(form as any)[f.key]}
+                          onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+                      </div>
+                    ))}
+                    <div style={{ gridColumn: '1/-1', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                      <button type="submit" disabled={saving} style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                        {saving ? 'Saving...' : 'Add Asset'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </form>
             </div>
           )}
