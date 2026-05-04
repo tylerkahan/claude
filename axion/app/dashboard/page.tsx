@@ -2,13 +2,14 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
+import { buildRecommendations } from '@/lib/recommendations'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: documents }, { data: assets }, { data: beneficiaries }, { data: digitalAssets }, { data: compliance }, { data: connectedAccounts }, { data: accountBalances }] = await Promise.all([
+  const [{ data: documents }, { data: assets }, { data: beneficiaries }, { data: digitalAssets }, { data: compliance }, { data: connectedAccounts }, { data: accountBalances }, { data: profile }, { data: familyMembers }] = await Promise.all([
     supabase.from('documents').select('*').eq('user_id', user.id),
     supabase.from('assets').select('*').eq('user_id', user.id),
     supabase.from('beneficiaries').select('*').eq('user_id', user.id),
@@ -16,7 +17,23 @@ export default async function DashboardPage() {
     supabase.from('compliance_checks').select('*').eq('user_id', user.id),
     supabase.from('connected_accounts').select('*').eq('user_id', user.id),
     supabase.from('account_balances').select('*').eq('user_id', user.id),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('family_members').select('*').eq('user_id', user.id),
   ])
+
+  // Smart recommendations engine
+  const recommendations = buildRecommendations({
+    profile,
+    assets: assets ?? [],
+    beneficiaries: beneficiaries ?? [],
+    compliance: compliance ?? [],
+    familyMembers: familyMembers ?? [],
+    connectedAccounts: connectedAccounts ?? [],
+    accountBalances: accountBalances ?? [],
+    documents: documents ?? [],
+  })
+  const criticalRecs = recommendations.filter(r => r.severity === 'critical')
+  const topRecs = recommendations.slice(0, 4)
 
   const totalPhysical = assets?.reduce((s, a) => s + (a.value || 0), 0) ?? 0
   const totalDigital = digitalAssets?.reduce((s, a) => s + (a.estimated_value || 0), 0) ?? 0
@@ -56,8 +73,12 @@ export default async function DashboardPage() {
         {/* Top bar */}
         <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '16px', backdropFilter: 'blur(20px)' }}>
           <div>
-            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Dashboard</span>
-            <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '8px' }}>Estate overview</span>
+            <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>
+              {profile?.full_name ? `${profile.full_name.split(' ')[0]}'s Estate` : 'Dashboard'}
+            </span>
+            <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '8px' }}>
+              {criticalRecs.length > 0 ? `⚠ ${criticalRecs.length} critical item${criticalRecs.length > 1 ? 's' : ''} need attention` : 'Estate overview'}
+            </span>
           </div>
           <div style={{ flex: 1 }} />
           <Link href="/vault" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', color: '#6b7ab8' }}>↑ Upload Document</Link>
@@ -137,48 +158,43 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            {/* Action items */}
-            <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.16)', borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
-              <div style={{ marginBottom: '14px' }}>
+            {/* Smart action items */}
+            <div style={{ background: 'rgba(8,14,40,0.7)', border: `1px solid ${criticalRecs.length > 0 ? 'rgba(255,102,136,0.2)' : 'rgba(0,100,255,0.16)'}`, borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em' }}>Action Items</span>
+                {recommendations.length > 0 && (
+                  <Link href="/ai" style={{ fontSize: '11px', color: '#00aaff', textDecoration: 'none', fontWeight: 600 }}>Ask AI →</Link>
+                )}
               </div>
-              {docCount === 0 && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '10px', marginBottom: '8px', background: 'rgba(255,160,0,0.07)', border: '1px solid rgba(255,160,0,0.18)' }}>
-                  <div style={{ fontSize: '18px', marginTop: '1px' }}>⚠️</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8eaf6', marginBottom: '2px' }}>No documents uploaded</div>
-                    <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Upload your will or trust to get started</div>
-                  </div>
-                  <Link href="/vault" style={{ fontSize: '12px', color: '#00aaff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>Fix →</Link>
-                </div>
-              )}
-              {beneficiaryCount === 0 && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '10px', marginBottom: '8px', background: 'rgba(0,80,255,0.07)', border: '1px solid rgba(0,100,255,0.18)' }}>
-                  <div style={{ fontSize: '18px', marginTop: '1px' }}>💡</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8eaf6', marginBottom: '2px' }}>No beneficiaries added</div>
-                    <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Add your executor and heirs</div>
-                  </div>
-                  <Link href="/beneficiaries" style={{ fontSize: '12px', color: '#00aaff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>Add →</Link>
-                </div>
-              )}
-              {score === 100 && docCount > 0 && beneficiaryCount > 0 && (
+              {topRecs.length === 0 ? (
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(0,200,80,0.06)', border: '1px solid rgba(0,200,80,0.18)' }}>
                   <div style={{ fontSize: '18px' }}>✅</div>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8eaf6', marginBottom: '2px' }}>Estate fully organized</div>
-                    <div style={{ fontSize: '12px', color: '#6b7ab8' }}>All checklist items complete</div>
+                    <div style={{ fontSize: '12px', color: '#6b7ab8' }}>No critical gaps detected</div>
                   </div>
                 </div>
-              )}
-              {score > 0 && score < 100 && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(0,200,80,0.06)', border: '1px solid rgba(0,200,80,0.18)' }}>
-                  <div style={{ fontSize: '18px' }}>📋</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e8eaf6', marginBottom: '2px' }}>{checkedCount} of {CHECKLIST_TOTAL} items done</div>
-                    <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Complete your estate checklist</div>
+              ) : topRecs.map(rec => {
+                const colors: Record<string, { bg: string; border: string; dot: string }> = {
+                  critical: { bg: 'rgba(255,102,136,0.07)', border: 'rgba(255,102,136,0.2)', dot: '#ff6688' },
+                  high:     { bg: 'rgba(255,170,0,0.07)',   border: 'rgba(255,170,0,0.2)',   dot: '#ffaa00' },
+                  medium:   { bg: 'rgba(0,170,255,0.07)',   border: 'rgba(0,170,255,0.2)',   dot: '#00aaff' },
+                }
+                const c = colors[rec.severity]
+                return (
+                  <div key={rec.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '11px 13px', borderRadius: '10px', marginBottom: '8px', background: c.bg, border: `1px solid ${c.border}` }}>
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: c.dot, flexShrink: 0, marginTop: '5px', display: 'inline-block', boxShadow: `0 0 6px ${c.dot}` }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8eaf6', marginBottom: '2px' }}>{rec.title}</div>
+                      <div style={{ fontSize: '11px', color: '#6b7ab8', lineHeight: '1.5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.description}</div>
+                    </div>
+                    <Link href={rec.actionPath} style={{ fontSize: '11px', color: '#00aaff', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '2px' }}>Fix →</Link>
                   </div>
-                  <Link href="/compliance" style={{ fontSize: '12px', color: '#00aaff', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>View →</Link>
+                )
+              })}
+              {recommendations.length > 4 && (
+                <div style={{ textAlign: 'center', paddingTop: '4px' }}>
+                  <Link href="/ai" style={{ fontSize: '12px', color: '#6b7ab8', textDecoration: 'none' }}>+{recommendations.length - 4} more — Ask AI for the full plan</Link>
                 </div>
               )}
             </div>
