@@ -1,9 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
+
+const CRYPTO_COINS = ['BTC', 'ETH', 'SOL', 'USDC', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'MATIC', 'LTC', 'LINK']
 
 export default function OnboardingPage() {
   const [user, setUser] = useState<any>(null)
@@ -22,15 +24,45 @@ export default function OnboardingPage() {
   const [assetTypes, setAssetTypes] = useState<string[]>([])
   const [estateEstimate, setEstateEstimate] = useState('')
 
-  // Step 4 — Documents
+  // Step 4 — Integrations
+  const [plaidReady, setPlaidReady] = useState(false)
+  const [plaidConfigured, setPlaidConfigured] = useState(true)
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([])
+  const [accountBalances, setAccountBalances] = useState<any[]>([])
+  const [cryptoForm, setCryptoForm] = useState({ symbol: 'BTC', amount: '' })
+  const [cryptoPrice, setCryptoPrice] = useState<number | null>(null)
+  const [cryptoSaving, setCryptoSaving] = useState(false)
+  const [showCryptoForm, setShowCryptoForm] = useState(false)
+  const [propForm, setPropForm] = useState({ address: '', value: '' })
+  const [propSaving, setPropSaving] = useState(false)
+  const [showPropForm, setShowPropForm] = useState(false)
+
+  // Step 5 — Documents
   const [docs, setDocs] = useState({ has_will: '', has_trust: '', has_poa: '', has_healthcare: '' })
 
-  // Step 5 — Goals
+  // Step 6 — Goals
   const [goals, setGoals] = useState<string[]>([])
 
   const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
   const ASSET_TYPES = ['Real Estate', 'Investment Accounts', 'Bank Accounts', 'Crypto / Digital Assets', 'Business Interest', 'Life Insurance', 'Retirement Accounts (401k/IRA)']
   const GOAL_OPTIONS = ['Protect my family if I die', 'Organize all my documents', 'Reduce estate taxes', 'Avoid probate', 'Plan for incapacity', 'Pass on my business', 'Protect assets from creditors']
+
+  // Load Plaid script
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js'
+    script.onload = () => setPlaidReady(true)
+    document.body.appendChild(script)
+  }, [])
+
+  // Live crypto price
+  useEffect(() => {
+    if (!cryptoForm.symbol) return
+    fetch(`/api/crypto/prices?symbols=${cryptoForm.symbol}`)
+      .then(r => r.json())
+      .then(d => setCryptoPrice(d[cryptoForm.symbol] ?? null))
+      .catch(() => setCryptoPrice(null))
+  }, [cryptoForm.symbol])
 
   useEffect(() => {
     async function load() {
@@ -38,12 +70,21 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
-      // If already onboarded, skip to dashboard
       const { data: profile } = await supabase.from('profiles').select('onboarding_complete').eq('id', user.id).single()
       if (profile?.onboarding_complete) { router.push('/dashboard'); return }
     }
     load()
   }, [router])
+
+  async function refreshConnected(userId: string) {
+    const supabase = createClient()
+    const [{ data: c }, { data: b }] = await Promise.all([
+      supabase.from('connected_accounts').select('*').eq('user_id', userId),
+      supabase.from('account_balances').select('*').eq('user_id', userId),
+    ])
+    setConnectedAccounts(c ?? [])
+    setAccountBalances(b ?? [])
+  }
 
   function updateChildCount(n: number) {
     setFamily(f => ({ ...f, num_children: String(n) }))
@@ -54,19 +95,86 @@ export default function OnboardingPage() {
     })
   }
 
-  function toggleAsset(a: string) {
-    setAssetTypes(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a])
+  function toggleAsset(a: string) { setAssetTypes(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]) }
+  function toggleGoal(g: string) { setGoals(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]) }
+
+  // ── Plaid ─────────────────────────────────────────────
+  async function openPlaidLink() {
+    try {
+      const res = await fetch('/api/plaid/link-token', { method: 'POST' })
+      const data = await res.json()
+      if (data.error) {
+        if (data.error.includes('not configured')) { setPlaidConfigured(false); return }
+        alert(data.error); return
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handler = (window as any).Plaid.create({
+        token: data.link_token,
+        onSuccess: async (public_token: string, metadata: any) => {
+          const r = await fetch('/api/plaid/exchange-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ public_token, metadata }),
+          })
+          if ((await r.json()).success) await refreshConnected(user.id)
+        },
+        onExit: () => {},
+      })
+      handler.open()
+    } catch { alert('Failed to open Plaid Link') }
   }
 
-  function toggleGoal(g: string) {
-    setGoals(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])
+  // ── Crypto ────────────────────────────────────────────
+  async function saveCrypto(e: React.FormEvent) {
+    e.preventDefault()
+    setCryptoSaving(true)
+    const amount = parseFloat(cryptoForm.amount)
+    const value = cryptoPrice ? cryptoPrice * amount : 0
+    await fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        integration_type: 'crypto',
+        institution_name: `${cryptoForm.symbol} Wallet`,
+        category: 'crypto',
+        account_name: `${cryptoForm.amount} ${cryptoForm.symbol}`,
+        account_type: 'crypto',
+        current_balance: value,
+      }),
+    })
+    setCryptoForm({ symbol: 'BTC', amount: '' })
+    setShowCryptoForm(false)
+    await refreshConnected(user.id)
+    setCryptoSaving(false)
   }
 
+  // ── Property ──────────────────────────────────────────
+  async function saveProperty(e: React.FormEvent) {
+    e.preventDefault()
+    setPropSaving(true)
+    await fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        integration_type: 'real_estate',
+        institution_name: propForm.address || 'Property',
+        category: 'real_estate',
+        account_name: propForm.address || 'Real Estate',
+        account_type: 'real_estate',
+        current_balance: parseFloat(propForm.value) || 0,
+      }),
+    })
+    setPropForm({ address: '', value: '' })
+    setShowPropForm(false)
+    await refreshConnected(user.id)
+    setPropSaving(false)
+  }
+
+  // ── Finish ────────────────────────────────────────────
   async function finish() {
     setSaving(true)
     const supabase = createClient()
 
-    // Save profile
     await supabase.from('profiles').upsert({
       id: user.id,
       full_name: personal.full_name,
@@ -78,27 +186,25 @@ export default function OnboardingPage() {
       estate_estimate: estateEstimate,
       goals: goals.join(', '),
       onboarding_complete: true,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
 
-    // Pre-fill compliance based on what they said they have
-    const complianceMap: Record<string, string> = {
-      has_will: 'will', has_trust: 'trust', has_poa: 'poa', has_healthcare: 'healthcare'
-    }
+    const complianceMap: Record<string, string> = { has_will: 'will', has_trust: 'trust', has_poa: 'poa', has_healthcare: 'healthcare' }
     const checks = Object.entries(docs).filter(([, v]) => v === 'yes').map(([k]) => ({
       user_id: user.id, check_id: complianceMap[k], completed: true, updated_at: new Date().toISOString()
     }))
-    if (checks.length > 0) {
-      await supabase.from('compliance_checks').upsert(checks, { onConflict: 'user_id,check_id' })
-    }
+    if (checks.length > 0) await supabase.from('compliance_checks').upsert(checks, { onConflict: 'user_id,check_id' })
 
-    // Add asset categories as net worth entries if they have an estimate
-    if (assetTypes.length > 0 && estateEstimate) {
+    // Add manual asset categories (skip Crypto — that went through integrations)
+    const nonCryptoTypes = assetTypes.filter(t => !t.toLowerCase().includes('crypto'))
+    if (nonCryptoTypes.length > 0 && estateEstimate) {
       const estVal = parseFloat(estateEstimate.replace(/[^0-9.]/g, '')) || 0
-      const perAsset = Math.floor(estVal / assetTypes.length)
-      const assetRows = assetTypes.map(type => ({
-        user_id: user.id, name: type, category: type.includes('Real') ? 'Real Estate' : type.includes('Investment') ? 'Investment Account' : type.includes('Bank') ? 'Bank Account' : type.includes('Crypto') ? 'Crypto' : type.includes('Business') ? 'Business' : type.includes('Life') ? 'Life Insurance' : 'Other',
-        value: perAsset, institution: ''
+      const perAsset = Math.floor(estVal / nonCryptoTypes.length)
+      const assetRows = nonCryptoTypes.map(type => ({
+        user_id: user.id,
+        name: type,
+        category: type.includes('Real') ? 'Real Estate' : type.includes('Investment') ? 'Investment Account' : type.includes('Bank') ? 'Bank Account' : type.includes('Business') ? 'Business' : type.includes('Life') ? 'Life Insurance' : 'Other',
+        value: perAsset, institution: '',
       }))
       await supabase.from('assets').insert(assetRows)
     }
@@ -113,13 +219,17 @@ export default function OnboardingPage() {
     { num: 1, label: 'You' },
     { num: 2, label: 'Family' },
     { num: 3, label: 'Assets' },
-    { num: 4, label: 'Documents' },
-    { num: 5, label: 'Goals' },
+    { num: 4, label: 'Connect' },
+    { num: 5, label: 'Docs' },
+    { num: 6, label: 'Goals' },
   ]
+
+  const connectedTotal = accountBalances.reduce((s, b) => s + (b.current_balance || 0), 0)
+  const fmt = (n: number) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(2)}M` : n >= 1_000 ? `$${(n/1_000).toFixed(1)}K` : `$${n.toLocaleString()}`
 
   return (
     <div style={{ minHeight: '100vh', background: '#03040d', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ width: '100%', maxWidth: '560px' }}>
+      <div style={{ width: '100%', maxWidth: step === 4 ? '640px' : '560px', transition: 'max-width .3s ease' }}>
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '40px' }}>
@@ -149,7 +259,7 @@ export default function OnboardingPage() {
         {/* Card */}
         <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '20px', padding: '36px', backdropFilter: 'blur(20px)' }}>
 
-          {/* Step 1 — Personal */}
+          {/* ── Step 1 — Personal ── */}
           {step === 1 && (
             <div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>Let's get to know you</h2>
@@ -176,9 +286,7 @@ export default function OnboardingPage() {
                   <label style={labelStyle}>Marital Status</label>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {['Single', 'Married', 'Divorced', 'Widowed', 'Domestic Partnership'].map(s => (
-                      <button key={s} type="button" onClick={() => setPersonal(p => ({ ...p, marital_status: s }))} style={{ padding: '8px 16px', borderRadius: '20px', border: `1px solid ${personal.marital_status === s ? 'rgba(0,170,255,0.5)' : 'rgba(0,100,255,0.2)'}`, background: personal.marital_status === s ? 'rgba(0,120,255,0.12)' : 'transparent', color: personal.marital_status === s ? '#00aaff' : '#6b7ab8', fontSize: '13px', cursor: 'pointer', fontWeight: personal.marital_status === s ? 700 : 400, transition: 'all .15s' }}>
-                        {s}
-                      </button>
+                      <button key={s} type="button" onClick={() => setPersonal(p => ({ ...p, marital_status: s }))} style={{ padding: '8px 16px', borderRadius: '20px', border: `1px solid ${personal.marital_status === s ? 'rgba(0,170,255,0.5)' : 'rgba(0,100,255,0.2)'}`, background: personal.marital_status === s ? 'rgba(0,120,255,0.12)' : 'transparent', color: personal.marital_status === s ? '#00aaff' : '#6b7ab8', fontSize: '13px', cursor: 'pointer', fontWeight: personal.marital_status === s ? 700 : 400, transition: 'all .15s' }}>{s}</button>
                     ))}
                   </div>
                 </div>
@@ -186,7 +294,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 2 — Family */}
+          {/* ── Step 2 — Family ── */}
           {step === 2 && (
             <div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>Your family</h2>
@@ -208,7 +316,7 @@ export default function OnboardingPage() {
                 </div>
                 {children.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <label style={labelStyle}>Children's Names & Ages</label>
+                    <label style={labelStyle}>Children&apos;s Names &amp; Ages</label>
                     {children.map((c, i) => (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px' }}>
                         <input value={c.name} onChange={e => { const a = [...children]; a[i] = { ...a[i], name: e.target.value }; setChildren(a) }} placeholder={`Child ${i + 1} name`} style={inputStyle} />
@@ -229,11 +337,11 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 3 — Assets */}
+          {/* ── Step 3 — Assets ── */}
           {step === 3 && (
             <div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>Your assets</h2>
-              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Select everything that applies. This helps us set up your net worth tracker.</p>
+              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Select everything that applies. We&apos;ll help you connect the accounts in the next step.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '22px' }}>
                 {ASSET_TYPES.map(a => (
                   <button key={a} type="button" onClick={() => toggleAsset(a)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', border: `1px solid ${assetTypes.includes(a) ? 'rgba(0,170,255,0.4)' : 'rgba(0,100,255,0.15)'}`, background: assetTypes.includes(a) ? 'rgba(0,120,255,0.1)' : 'rgba(255,255,255,0.02)', cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}>
@@ -258,11 +366,145 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 4 — Documents */}
+          {/* ── Step 4 — Connect Accounts ── */}
           {step === 4 && (
             <div>
+              <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>Connect your accounts</h2>
+              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '24px' }}>Link your financial accounts for a live, accurate estate value. Everything is optional — you can always add more later.</p>
+
+              {/* Connected total pill */}
+              {connectedTotal > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,200,80,0.07)', border: '1px solid rgba(0,200,80,0.2)', borderRadius: '12px', padding: '10px 16px', marginBottom: '20px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00cc66', boxShadow: '0 0 6px #00cc66', flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ fontSize: '13px', color: '#6b7ab8' }}>Connected so far:</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#fff', fontFamily: "'Space Grotesk',sans-serif", marginLeft: 'auto' }}>{fmt(connectedTotal)}</span>
+                </div>
+              )}
+
+              {/* Connected accounts list */}
+              {connectedAccounts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                  {connectedAccounts.map(conn => {
+                    const bal = accountBalances.filter(b => b.connected_account_id === conn.id).reduce((s, b) => s + (b.current_balance || 0), 0)
+                    return (
+                      <div key={conn.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'rgba(0,200,80,0.05)', border: '1px solid rgba(0,200,80,0.15)', borderRadius: '10px' }}>
+                        <span style={{ fontSize: '16px' }}>{conn.category === 'crypto' ? '₿' : conn.category === 'real_estate' ? '🏠' : conn.category === 'investment' ? '📈' : '🏦'}</span>
+                        <span style={{ fontSize: '13px', color: '#e8eaf6', flex: 1, fontWeight: 600 }}>{conn.institution_name}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#00cc66' }}>{fmt(bal)}</span>
+                        <span style={{ fontSize: '11px', color: '#00cc66' }}>✓</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Connection options */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+                {/* Plaid — Bank / Brokerage */}
+                <div style={{ background: 'rgba(0,85,255,0.06)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '14px', padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <span style={{ fontSize: '26px' }}>🏦</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Bank &amp; Brokerage Accounts</div>
+                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Fidelity, Schwab, Chase, and 12,000+ more via Plaid</div>
+                    </div>
+                    {!plaidConfigured ? (
+                      <span style={{ fontSize: '11px', color: '#ffaa00', fontWeight: 600, background: 'rgba(255,170,0,0.1)', border: '1px solid rgba(255,170,0,0.25)', borderRadius: '6px', padding: '4px 10px' }}>Setup required</span>
+                    ) : (
+                      <button onClick={openPlaidLink} disabled={!plaidReady} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: plaidReady ? 'pointer' : 'not-allowed', opacity: plaidReady ? 1 : 0.6, flexShrink: 0 }}>
+                        + Connect
+                      </button>
+                    )}
+                  </div>
+                  {!plaidConfigured && (
+                    <div style={{ marginTop: '12px', fontSize: '12px', color: '#6b7ab8', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
+                      Add <code style={{ color: '#00aaff' }}>PLAID_CLIENT_ID</code>, <code style={{ color: '#00aaff' }}>PLAID_SECRET</code>, and <code style={{ color: '#00aaff' }}>PLAID_ENV=sandbox</code> to your Vercel environment variables to enable bank connections.
+                    </div>
+                  )}
+                </div>
+
+                {/* Crypto */}
+                <div style={{ background: 'rgba(247,147,26,0.05)', border: '1px solid rgba(247,147,26,0.18)', borderRadius: '14px', padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: showCryptoForm ? '16px' : '0' }}>
+                    <span style={{ fontSize: '26px' }}>₿</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Crypto Holdings</div>
+                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>BTC, ETH, SOL — live prices from CoinGecko</div>
+                    </div>
+                    <button onClick={() => setShowCryptoForm(v => !v)} style={{ padding: '8px 18px', background: showCryptoForm ? 'transparent' : 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '8px', color: '#f7931a', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                      {showCryptoForm ? 'Cancel' : '+ Add Holding'}
+                    </button>
+                  </div>
+                  {showCryptoForm && (
+                    <form onSubmit={saveCrypto} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={labelStyle}>Coin</label>
+                          <select value={cryptoForm.symbol} onChange={e => setCryptoForm(p => ({ ...p, symbol: e.target.value }))}
+                            style={{ ...inputStyle, border: '1px solid rgba(247,147,26,0.25)' }}>
+                            {CRYPTO_COINS.map(c => <option key={c} style={{ background: '#060818' }}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Amount</label>
+                          <input required type="number" step="any" min="0" value={cryptoForm.amount} onChange={e => setCryptoForm(p => ({ ...p, amount: e.target.value }))} placeholder="e.g. 0.5"
+                            style={{ ...inputStyle, border: '1px solid rgba(247,147,26,0.25)' }} />
+                        </div>
+                      </div>
+                      {cryptoPrice && cryptoForm.amount && (
+                        <div style={{ background: 'rgba(247,147,26,0.08)', border: '1px solid rgba(247,147,26,0.2)', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Live value ({cryptoForm.symbol} @ ${cryptoPrice.toLocaleString()})</span>
+                          <span style={{ fontSize: '15px', fontWeight: 800, color: '#f7931a' }}>{fmt(cryptoPrice * parseFloat(cryptoForm.amount || '0'))}</span>
+                        </div>
+                      )}
+                      <button type="submit" disabled={cryptoSaving} style={{ padding: '9px', background: 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '8px', color: '#f7931a', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                        {cryptoSaving ? 'Saving...' : 'Add Holding'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* Real Estate */}
+                <div style={{ background: 'rgba(102,68,255,0.05)', border: '1px solid rgba(102,68,255,0.18)', borderRadius: '14px', padding: '18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: showPropForm ? '16px' : '0' }}>
+                    <span style={{ fontSize: '26px' }}>🏠</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Real Estate</div>
+                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Add properties by address and estimated value</div>
+                    </div>
+                    <button onClick={() => setShowPropForm(v => !v)} style={{ padding: '8px 18px', background: showPropForm ? 'transparent' : 'rgba(102,68,255,0.12)', border: '1px solid rgba(102,68,255,0.3)', borderRadius: '8px', color: '#aa88ff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                      {showPropForm ? 'Cancel' : '+ Add Property'}
+                    </button>
+                  </div>
+                  {showPropForm && (
+                    <form onSubmit={saveProperty} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <label style={labelStyle}>Property Address</label>
+                        <input required value={propForm.address} onChange={e => setPropForm(p => ({ ...p, address: e.target.value }))} placeholder="e.g. 123 Oak Drive, Austin, TX 78701"
+                          style={{ ...inputStyle, border: '1px solid rgba(102,68,255,0.25)' }} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Estimated Value ($)</label>
+                        <input required type="number" min="0" value={propForm.value} onChange={e => setPropForm(p => ({ ...p, value: e.target.value }))} placeholder="e.g. 850000"
+                          style={{ ...inputStyle, border: '1px solid rgba(102,68,255,0.25)' }} />
+                      </div>
+                      <button type="submit" disabled={propSaving} style={{ padding: '9px', background: 'rgba(102,68,255,0.12)', border: '1px solid rgba(102,68,255,0.3)', borderRadius: '8px', color: '#aa88ff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                        {propSaving ? 'Saving...' : 'Add Property'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5 — Documents ── */}
+          {step === 5 && (
+            <div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>Your documents</h2>
-              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Do you already have these estate planning documents? We'll mark them complete in your checklist.</p>
+              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Do you already have these? We&apos;ll mark them complete in your checklist.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {[
                   { key: 'has_will', label: 'Last Will & Testament', desc: 'A signed, witnessed will' },
@@ -284,11 +526,11 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 5 — Goals */}
-          {step === 5 && (
+          {/* ── Step 6 — Goals ── */}
+          {step === 6 && (
             <div>
               <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '22px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>What brings you here?</h2>
-              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Select all that apply. This helps us prioritize what matters most to you.</p>
+              <p style={{ fontSize: '14px', color: '#6b7ab8', marginBottom: '28px' }}>Select all that apply. This helps us prioritize what matters most.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {GOAL_OPTIONS.map(g => (
                   <button key={g} type="button" onClick={() => toggleGoal(g)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', borderRadius: '12px', border: `1px solid ${goals.includes(g) ? 'rgba(0,170,255,0.4)' : 'rgba(0,100,255,0.15)'}`, background: goals.includes(g) ? 'rgba(0,120,255,0.1)' : 'rgba(255,255,255,0.02)', cursor: 'pointer', textAlign: 'left', transition: 'all .15s' }}>
@@ -310,9 +552,13 @@ export default function OnboardingPage() {
               <button onClick={() => router.push('/dashboard')} style={{ padding: '10px 20px', background: 'transparent', border: 'none', color: '#3d4a7a', cursor: 'pointer', fontSize: '13px' }}>Skip setup</button>
             )}
 
+            {step === 4 && (
+              <button onClick={() => setStep(s => s + 1)} style={{ padding: '10px 20px', background: 'transparent', border: 'none', color: '#3d4a7a', cursor: 'pointer', fontSize: '13px' }}>Skip for now →</button>
+            )}
+
             {step < TOTAL_STEPS ? (
               <button onClick={() => setStep(s => s + 1)} style={{ padding: '11px 28px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 0 20px rgba(0,100,255,0.25)' }}>
-                Continue →
+                {step === 4 && connectedAccounts.length > 0 ? 'Continue →' : step === 4 ? 'Continue →' : 'Continue →'}
               </button>
             ) : (
               <button onClick={finish} disabled={saving} style={{ padding: '11px 28px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', boxShadow: '0 0 20px rgba(0,100,255,0.25)', opacity: saving ? 0.7 : 1 }}>
