@@ -426,16 +426,46 @@ export default function OnboardingPage() {
 
                 {/* Crypto */}
                 <div style={{ background: 'rgba(247,147,26,0.05)', border: '1px solid rgba(247,147,26,0.18)', borderRadius: '14px', padding: '18px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: showCryptoForm ? '16px' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
                     <span style={{ fontSize: '26px' }}>₿</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Crypto Holdings</div>
-                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>BTC, ETH, SOL — live prices from CoinGecko</div>
+                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Connect Coinbase for live balances, or enter manually</div>
                     </div>
-                    <button onClick={() => setShowCryptoForm(v => !v)} style={{ padding: '8px 18px', background: showCryptoForm ? 'transparent' : 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '8px', color: '#f7931a', fontSize: '12px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                      {showCryptoForm ? 'Cancel' : '+ Add Holding'}
+                  </div>
+
+                  {/* Coinbase OAuth row */}
+                  {(() => {
+                    const cbConnected = connectedAccounts.some(a => a.integration_type === 'coinbase')
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: cbConnected ? 'rgba(0,204,102,0.06)' : 'rgba(0,82,255,0.06)', border: `1px solid ${cbConnected ? 'rgba(0,204,102,0.2)' : 'rgba(0,82,255,0.2)'}`, borderRadius: '10px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '16px' }}>🔵</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: cbConnected ? '#00cc66' : '#fff' }}>
+                            {cbConnected ? '✓ Coinbase connected' : 'Coinbase'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#6b7ab8', marginLeft: '8px' }}>{cbConnected ? 'Live balances synced' : 'Live wallet balances via OAuth'}</span>
+                        </div>
+                        {cbConnected ? (
+                          <button onClick={() => refreshConnected(user.id)} style={{ padding: '5px 12px', background: 'transparent', border: '1px solid rgba(0,204,102,0.3)', borderRadius: '7px', color: '#00cc66', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>↻ Refresh</button>
+                        ) : (
+                          <a href="/api/coinbase/auth?source=onboarding" target="_blank" rel="noopener noreferrer" onClick={() => setTimeout(() => refreshConnected(user?.id), 8000)}
+                            style={{ padding: '5px 14px', background: 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.35)', borderRadius: '7px', color: '#f7931a', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textDecoration: 'none', flexShrink: 0 }}>
+                            Connect →
+                          </a>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Manual toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showCryptoForm ? '12px' : '0' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Other wallets / self-custody (manual)</span>
+                    <button onClick={() => setShowCryptoForm(v => !v)} style={{ padding: '5px 14px', background: showCryptoForm ? 'transparent' : 'rgba(247,147,26,0.12)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '7px', color: '#f7931a', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                      {showCryptoForm ? 'Cancel' : '+ Add Manually'}
                     </button>
                   </div>
+
                   {showCryptoForm && (
                     <form onSubmit={saveCrypto} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

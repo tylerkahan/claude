@@ -55,9 +55,10 @@ export default function IntegrationsPage() {
   const [connections, setConnections] = useState<ConnectedAccount[]>([])
   const [balances, setBalances] = useState<AccountBalance[]>([])
   const [syncing, setSyncing] = useState(false)
-  const [activeModal, setActiveModal] = useState<null | 'plaid' | 'crypto' | 'property'>(null)
+  const [activeModal, setActiveModal] = useState<null | 'plaid' | 'crypto' | 'property' | 'coinbase_setup'>(null)
   const [plaidReady, setPlaidReady] = useState(false)
   const [plaidConfigured, setPlaidConfigured] = useState(true)
+  const [coinbaseConfigured, setCoinbaseConfigured] = useState(true)
 
   // crypto form
   const [cryptoForm, setCryptoForm] = useState({ symbol: 'BTC', amount: '' })
@@ -94,6 +95,19 @@ export default function IntegrationsPage() {
   }, [router])
 
   useEffect(() => { load() }, [load])
+
+  // Check for Coinbase callback result in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('coinbase') === 'connected') {
+      window.history.replaceState({}, '', '/integrations')
+    }
+    if (params.get('error') === 'coinbase_not_configured') {
+      setCoinbaseConfigured(false)
+      setActiveModal('coinbase_setup')
+      window.history.replaceState({}, '', '/integrations')
+    }
+  }, [])
 
   // Fetch live crypto price when symbol changes
   useEffect(() => {
@@ -144,10 +158,13 @@ export default function IntegrationsPage() {
     }
   }
 
-  // ── Sync all Plaid connections ───────────────────────────
+  // ── Sync all live connections ────────────────────────────
   async function syncAll() {
     setSyncing(true)
-    await fetch('/api/plaid/sync', { method: 'POST' })
+    const syncs: Promise<any>[] = []
+    if (connections.some(c => c.integration_type === 'plaid')) syncs.push(fetch('/api/plaid/sync', { method: 'POST' }))
+    if (connections.some(c => c.integration_type === 'coinbase')) syncs.push(fetch('/api/coinbase/sync', { method: 'POST' }))
+    await Promise.all(syncs)
     await load()
     setSyncing(false)
   }
@@ -155,14 +172,21 @@ export default function IntegrationsPage() {
   // ── Disconnect ───────────────────────────────────────────
   async function disconnect(conn: ConnectedAccount) {
     if (!confirm(`Disconnect ${conn.institution_name}? This will remove all synced balances.`)) return
-    const endpoint = conn.integration_type === 'plaid' ? '/api/plaid/disconnect' : '/api/accounts'
-    const method = conn.integration_type === 'plaid' ? 'POST' : 'DELETE'
+    let endpoint: string, method: string
+    if (conn.integration_type === 'plaid') { endpoint = '/api/plaid/disconnect'; method = 'POST' }
+    else if (conn.integration_type === 'coinbase') { endpoint = '/api/coinbase/disconnect'; method = 'POST' }
+    else { endpoint = '/api/accounts'; method = 'DELETE' }
     await fetch(endpoint, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account_id: conn.id }),
     })
     await load()
+  }
+
+  // ── Connect Coinbase ─────────────────────────────────────
+  function connectCoinbase() {
+    window.location.href = '/api/coinbase/auth?source=integrations'
   }
 
   // ── Add Crypto ───────────────────────────────────────────
@@ -233,7 +257,7 @@ export default function IntegrationsPage() {
           <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Integrations</span>
           <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Connected accounts &amp; live data</span>
           <div style={{ flex: 1 }} />
-          {connections.some(c => c.integration_type === 'plaid') && (
+          {connections.some(c => ['plaid', 'coinbase'].includes(c.integration_type)) && (
             <button onClick={syncAll} disabled={syncing} style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(0,170,255,0.3)', borderRadius: '8px', color: '#00aaff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
               {syncing ? '⟳ Syncing...' : '⟳ Sync Now'}
             </button>
@@ -277,13 +301,13 @@ export default function IntegrationsPage() {
                     <div key={conn.id} style={{ background: 'rgba(8,14,40,0.7)', border: `1px solid ${c.border}`, borderRadius: '14px', padding: '16px 20px', backdropFilter: 'blur(20px)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: connBalances.length > 0 ? '12px' : '0' }}>
                         <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: c.bg, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
-                          {conn.category === 'crypto' ? '₿' : conn.category === 'real_estate' ? '🏠' : conn.category === 'investment' ? '📈' : '🏦'}
+                          {conn.integration_type === 'coinbase' ? '🔵' : conn.category === 'crypto' ? '₿' : conn.category === 'real_estate' ? '🏠' : conn.category === 'investment' ? '📈' : '🏦'}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                             <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{conn.institution_name}</span>
                             <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{conn.category.replace('_', ' ')}</span>
-                            {conn.integration_type === 'plaid' && <span style={{ fontSize: '10px', color: '#00cc66', fontWeight: 600 }}>● Live</span>}
+                            {['plaid', 'coinbase'].includes(conn.integration_type) && <span style={{ fontSize: '10px', color: '#00cc66', fontWeight: 600 }}>● Live</span>}
                           </div>
                           {conn.last_synced_at && (
                             <div style={{ fontSize: '11px', color: '#3d4a7a' }}>
@@ -347,14 +371,36 @@ export default function IntegrationsPage() {
 
             {/* Crypto section */}
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7ab8', marginBottom: '10px' }}>₿ Cryptocurrency — Manual Entry + Live Prices</div>
-              <div style={{ background: 'rgba(247,147,26,0.05)', border: '1px solid rgba(247,147,26,0.15)', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ fontSize: '32px' }}>₿</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '3px' }}>Crypto Portfolio</div>
-                  <div style={{ fontSize: '12px', color: '#6b7ab8' }}>Add your holdings — BTC, ETH, SOL, and 10+ more. Prices update live from CoinGecko.</div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7ab8', marginBottom: '10px' }}>₿ Cryptocurrency</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                {/* Coinbase OAuth */}
+                {(() => {
+                  const isConnected = connections.some(c => c.integration_type === 'coinbase')
+                  return (
+                    <div style={{ background: 'rgba(8,14,40,0.7)', border: `1px solid ${isConnected ? 'rgba(0,204,102,0.25)' : 'rgba(247,147,26,0.18)'}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(0,82,255,0.15)', border: '1px solid rgba(0,82,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🔵</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '1px' }}>Coinbase</div>
+                        <div style={{ fontSize: '11px', color: '#6b7ab8' }}>Live wallet balances via OAuth — BTC, ETH, SOL, and all your coins</div>
+                      </div>
+                      <button onClick={connectCoinbase} style={{ padding: '5px 14px', background: isConnected ? 'rgba(0,204,102,0.1)' : 'rgba(247,147,26,0.15)', border: `1px solid ${isConnected ? 'rgba(0,204,102,0.3)' : 'rgba(247,147,26,0.35)'}`, borderRadius: '7px', color: isConnected ? '#00cc66' : '#f7931a', fontSize: '11px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        {isConnected ? '+ Add Another' : 'Connect'}
+                      </button>
+                    </div>
+                  )
+                })()}
+
+                {/* Manual holdings */}
+                <div style={{ background: 'rgba(247,147,26,0.04)', border: '1px solid rgba(247,147,26,0.13)', borderRadius: '12px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(247,147,26,0.1)', border: '1px solid rgba(247,147,26,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>₿</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '1px' }}>Manual Entry</div>
+                    <div style={{ fontSize: '11px', color: '#6b7ab8' }}>Self-custody wallets or other exchanges — prices from CoinGecko</div>
+                  </div>
+                  <button onClick={() => setActiveModal('crypto')} style={{ padding: '5px 14px', background: 'rgba(247,147,26,0.12)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '7px', color: '#f7931a', fontSize: '11px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>+ Add Holding</button>
                 </div>
-                <button onClick={() => setActiveModal('crypto')} style={{ padding: '8px 18px', background: 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.3)', borderRadius: '8px', color: '#f7931a', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Holding</button>
+
               </div>
             </div>
 
@@ -434,6 +480,34 @@ export default function IntegrationsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Coinbase not configured modal */}
+      {activeModal === 'coinbase_setup' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ background: '#060818', border: '1px solid rgba(247,147,26,0.25)', borderRadius: '20px', padding: '32px', maxWidth: '540px', width: '100%' }}>
+            <div style={{ fontSize: '24px', marginBottom: '12px' }}>🔑</div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>Coinbase API Keys Required</h3>
+            <p style={{ fontSize: '14px', color: '#6b7ab8', lineHeight: '1.7', marginBottom: '20px' }}>
+              To connect Coinbase, create a free OAuth app at{' '}
+              <a href="https://www.coinbase.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: '#f7931a' }}>coinbase.com/settings/api</a> and add these to your Vercel environment variables:
+            </p>
+            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(247,147,26,0.15)', borderRadius: '10px', padding: '14px 16px', fontFamily: 'monospace', fontSize: '13px', color: '#f7931a', marginBottom: '16px', lineHeight: '2' }}>
+              COINBASE_CLIENT_ID=your_client_id<br/>
+              COINBASE_CLIENT_SECRET=your_client_secret<br/>
+              NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
+            </div>
+            <div style={{ background: 'rgba(247,147,26,0.06)', border: '1px solid rgba(247,147,26,0.15)', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', color: '#6b7ab8', marginBottom: '20px', lineHeight: '1.7' }}>
+              <strong style={{ color: '#f7931a' }}>Redirect URI to add in Coinbase dashboard:</strong><br/>
+              <code style={{ color: '#fff' }}>https://your-app.vercel.app/api/coinbase/callback</code><br/>
+              Set the scope to <code style={{ color: '#f7931a' }}>wallet:accounts:read</code>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setActiveModal(null)} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Close</button>
+              <a href="https://www.coinbase.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ padding: '9px 20px', background: 'rgba(247,147,26,0.15)', border: '1px solid rgba(247,147,26,0.4)', borderRadius: '8px', color: '#f7931a', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Open Coinbase Settings →</a>
+            </div>
           </div>
         </div>
       )}
