@@ -8,17 +8,20 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: documents }, { data: assets }, { data: beneficiaries }, { data: digitalAssets }, { data: compliance }] = await Promise.all([
+  const [{ data: documents }, { data: assets }, { data: beneficiaries }, { data: digitalAssets }, { data: compliance }, { data: connectedAccounts }, { data: accountBalances }] = await Promise.all([
     supabase.from('documents').select('*').eq('user_id', user.id),
     supabase.from('assets').select('*').eq('user_id', user.id),
     supabase.from('beneficiaries').select('*').eq('user_id', user.id),
     supabase.from('digital_assets').select('*').eq('user_id', user.id),
     supabase.from('compliance_checks').select('*').eq('user_id', user.id),
+    supabase.from('connected_accounts').select('*').eq('user_id', user.id),
+    supabase.from('account_balances').select('*').eq('user_id', user.id),
   ])
 
   const totalPhysical = assets?.reduce((s, a) => s + (a.value || 0), 0) ?? 0
   const totalDigital = digitalAssets?.reduce((s, a) => s + (a.estimated_value || 0), 0) ?? 0
-  const totalValue = totalPhysical + totalDigital
+  const totalConnected = accountBalances?.reduce((s, b) => s + (b.current_balance || 0), 0) ?? 0
+  const totalValue = totalPhysical + totalDigital + totalConnected
   const docCount = documents?.length ?? 0
   const beneficiaryCount = beneficiaries?.length ?? 0
 
@@ -26,9 +29,17 @@ export default async function DashboardPage() {
   const checkedCount = compliance?.filter((c: any) => c.completed).length ?? 0
   const score = Math.round((checkedCount / CHECKLIST_TOTAL) * 100)
 
-  const assetsByCategory = assets ? Object.entries(
-    assets.reduce((acc: any, a) => { acc[a.category] = (acc[a.category] || 0) + a.value; return acc }, {})
-  ).sort(([, a]: any, [, b]: any) => b - a).slice(0, 4) : []
+  // Build unified allocation from both manual assets and connected account balances
+  const allocationMap: Record<string, number> = {}
+  assets?.forEach((a: any) => { allocationMap[a.category] = (allocationMap[a.category] || 0) + (a.value || 0) })
+  // Map connected account categories to display names
+  const CAT_MAP: Record<string, string> = { banking: 'Bank Account', investment: 'Investment Account', crypto: 'Crypto', real_estate: 'Real Estate' }
+  connectedAccounts?.forEach((conn: any) => {
+    const label = CAT_MAP[conn.category] || conn.category
+    const connTotal = accountBalances?.filter((b: any) => b.connected_account_id === conn.id).reduce((s: number, b: any) => s + (b.current_balance || 0), 0) ?? 0
+    allocationMap[label] = (allocationMap[label] || 0) + connTotal
+  })
+  const assetsByCategory = Object.entries(allocationMap).sort(([, a]: any, [, b]: any) => b - a).slice(0, 5)
 
   const CAT_COLORS: Record<string, string> = {
     'Real Estate': '#0055ff', 'Investment Account': '#0099ff', 'Bank Account': '#6644ff',
@@ -68,7 +79,9 @@ export default async function DashboardPage() {
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '32px', fontWeight: 800, color: '#fff', lineHeight: 1, marginBottom: '6px' }}>
                 ${totalValue.toLocaleString()}
               </div>
-              <div style={{ fontSize: '12px', color: '#6b7ab8' }}>{(assets?.length ?? 0) + (digitalAssets?.length ?? 0)} assets tracked</div>
+              <div style={{ fontSize: '12px', color: '#6b7ab8' }}>
+                {(assets?.length ?? 0) + (digitalAssets?.length ?? 0)} manual · {connectedAccounts?.length ?? 0} connected
+              </div>
             </div>
 
             <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.16)', borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
@@ -108,7 +121,7 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 assetsByCategory.map(([cat, val]: any) => {
-                  const pct = totalPhysical > 0 ? Math.round((val / totalPhysical) * 100) : 0
+                  const pct = totalValue > 0 ? Math.round((val / totalValue) * 100) : 0
                   const color = CAT_COLORS[cat] || '#6b7ab8'
                   return (
                     <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
