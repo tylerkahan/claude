@@ -150,15 +150,23 @@ export default function NetWorthPage() {
   // ── Credit card detection ────────────────────────────────
   const isCreditBalance = (b: any) => {
     const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
-    return conn?.category === 'credit' || (b.account_type || '').toLowerCase().includes('credit')
+    if (conn?.category === 'credit') return true
+    const t = (b.account_type || '').toLowerCase()
+    return t.includes('credit') || t === 'paypal' || t === 'line of credit'
   }
 
   // ── Computed ─────────────────────────────────────────────
+  const allCreditBalances = accountBalances.filter(b => {
+    const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+    if (conn?.category === 'credit') return true
+    const t = (b.account_type || '').toLowerCase()
+    return t.includes('credit') || t === 'paypal' || t === 'line of credit'
+  })
   const manualTotal = assets.reduce((s, a) => s + (a.value || 0), 0)
   const connectedTotal = accountBalances.filter(b => !isCreditBalance(b)).reduce((s, b) => s + (b.current_balance || 0), 0)
   const grandTotal = manualTotal + connectedTotal
   const totalMortgages = assets.reduce((s, a) => s + (a.mortgage || 0), 0)
-  const totalCreditCards = accountBalances.filter(isCreditBalance).reduce((s, b) => s + (b.current_balance || 0), 0)
+  const totalCreditCards = allCreditBalances.reduce((s, b) => s + (b.current_balance || 0), 0)
   const totalLiabilities = totalMortgages + totalCreditCards
   const netWorth = grandTotal - totalLiabilities
 
@@ -188,9 +196,17 @@ export default function NetWorthPage() {
   const crypto = assets.filter(a => a.category === 'Crypto')
   const connCrypto = connectedAccounts.filter(c => c.category === 'crypto')
   const connCredit = connectedAccounts.filter(c => c.category === 'credit')
-  const legacyCreditBalances = accountBalances.filter(b => {
+  const legacyCreditBalances = allCreditBalances.filter(b => {
     const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
-    return conn?.category === 'banking' && (b.account_type || '').toLowerCase().includes('credit')
+    return conn?.category !== 'credit' // only the ones not already in connCredit
+  })
+  // Group legacy credit balances by institution for display
+  const legacyCreditByConn: Record<string, {conn: any, balances: any[]}> = {}
+  legacyCreditBalances.forEach(b => {
+    const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+    if (!conn) return
+    if (!legacyCreditByConn[conn.id]) legacyCreditByConn[conn.id] = { conn, balances: [] }
+    legacyCreditByConn[conn.id].balances.push(b)
   })
 
   const reTotal = [...realEstate,...connRealEstate].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
@@ -730,30 +746,30 @@ export default function NetWorthPage() {
                     </div>
                   )
                 })}
-                {/* Credit cards */}
+                {/* Credit cards — dedicated credit connections */}
                 {connCredit.map(conn =>
                   accountBalances.filter(b=>b.connected_account_id===conn.id).map(b => (
-                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(255,60,60,0.08)'}}>
+                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(255,60,60,0.08)'}}>
                       <div>
                         <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · {b.account_type||'Credit'} · <span style={{color:'#00cc66'}}>● Live</span></div>
                       </div>
                       <div style={{fontSize:'13px',fontWeight:700,color:'#ff6060'}}>-{fmtFull(b.current_balance||0)}</div>
                     </div>
                   ))
                 )}
-                {legacyCreditBalances.map(b => {
-                  const conn = connectedAccounts.find(c=>c.id===b.connected_account_id)
-                  return (
-                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(255,60,60,0.08)'}}>
+                {/* Credit cards — found inside banking connections */}
+                {Object.values(legacyCreditByConn).map(({conn, balances}) =>
+                  balances.map(b => (
+                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid rgba(255,60,60,0.08)'}}>
                       <div>
                         <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn?.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · {b.account_type||'Credit card'} · <span style={{color:'#00cc66'}}>● Live</span></div>
                       </div>
                       <div style={{fontSize:'13px',fontWeight:700,color:'#ff6060'}}>-{fmtFull(b.current_balance||0)}</div>
                     </div>
-                  )
-                })}
+                  ))
+                )}
                 {totalLiabilities === 0 && (
                   <div style={{textAlign:'center',padding:'18px 0',color:'#3d4a7a',fontSize:'13px'}}>
                     No liabilities tracked.{' '}
@@ -835,52 +851,61 @@ export default function NetWorthPage() {
                 {/* Name */}
                 <div>
                   {lbl(form.category==='Real Estate'?'Property Name':form.category==='Private Equity'?'Fund Name':'Account / Asset Name')}
-                  <input required value={form.name} onChange={e=>sf({name:e.target.value})} placeholder={form.category==='Real Estate'?'e.g. Primary Residence':form.category==='Private Equity'?'e.g. Sequoia Fund XIV':'e.g. Chase Savings'} style={inp}/>
+                  <input required value={form.name} onChange={e=>sf({name:e.target.value})} style={inp}
+                    placeholder={
+                      form.category==='Real Estate' ? '142 Oak Drive (Primary Residence)' :
+                      form.category==='Private Equity' ? 'Sequoia Fund XIV' :
+                      form.category==='Investment Account' ? 'Fidelity Brokerage Account' :
+                      form.category==='Bank Account' ? 'Chase Checking' :
+                      form.category==='Business' ? 'Kahan Holdings LLC' :
+                      form.category==='Life Insurance' ? 'Northwestern Mutual — Whole Life' :
+                      'Asset name'
+                    }/>
                 </div>
 
                 {/* REAL ESTATE fields */}
                 {form.category==='Real Estate' && (<>
                   <div>
                     {lbl('Property Address','optional')}
-                    <input value={form.address} onChange={e=>sf({address:e.target.value})} placeholder="e.g. 142 Oak Drive, Austin TX 78701" style={inp}/>
+                    <input value={form.address} onChange={e=>sf({address:e.target.value})} placeholder="142 Oak Drive, Austin TX 78701" style={inp}/>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Estimated Value ($)')}
-                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Estimated / AVM Value ($)')}
+                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="2650000" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Purchase Price ($)','optional')}
-                      <input type="number" min="0" value={form.purchase_price} onChange={e=>sf({purchase_price:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Purchase Price ($)','for gain tracking')}
+                      <input type="number" min="0" value={form.purchase_price} onChange={e=>sf({purchase_price:e.target.value})} placeholder="1850000" style={inp}/>
                     </div>
                   </div>
                   <div>
-                    {lbl('Mortgage Balance ($)','optional')}
-                    <input type="number" min="0" value={form.mortgage} onChange={e=>sf({mortgage:e.target.value})} placeholder="0" style={inp}/>
+                    {lbl('Mortgage Balance ($)','current outstanding balance')}
+                    <input type="number" min="0" value={form.mortgage} onChange={e=>sf({mortgage:e.target.value})} placeholder="200000" style={inp}/>
                     {form.value&&form.mortgage&&parseFloat(form.value)>0&&<div style={{marginTop:'5px',fontSize:'12px',color:'#00cc66',fontWeight:600}}>Equity: {fmtFull(Math.max(0,parseFloat(form.value)-parseFloat(form.mortgage||'0')))}</div>}
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px'}}>
                     <div>
-                      {lbl('Rate (%)')}
+                      {lbl('Mortgage Rate (%)')}
                       <input type="number" step="0.01" value={form.mortgage_rate} onChange={e=>sf({mortgage_rate:e.target.value})} placeholder="3.25" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Term (yrs)')}
+                      {lbl('Loan Term (yrs)')}
                       <input type="number" value={form.mortgage_term} onChange={e=>sf({mortgage_term:e.target.value})} placeholder="30" style={inp}/>
                     </div>
                     <div>
-                      {lbl('/mo payment')}
-                      <input type="number" value={form.monthly_payment} onChange={e=>sf({monthly_payment:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Monthly Payment ($)')}
+                      <input type="number" value={form.monthly_payment} onChange={e=>sf({monthly_payment:e.target.value})} placeholder="1820" style={inp}/>
                     </div>
                   </div>
                   <div>
-                    {lbl('Lender / Institution','optional')}
-                    <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="e.g. Chase" style={inp}/>
+                    {lbl('Lender / Institution')}
+                    <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="Chase" style={inp}/>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',alignItems:'center'}}>
                     <div>
-                      {lbl('Held in Trust / Entity')}
-                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="e.g. Kahan Family Trust" style={inp}/>
+                      {lbl('Trust / Entity Name')}
+                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:'8px',paddingTop:'20px'}}>
                       <input type="checkbox" id="hit" checked={form.held_in_trust} onChange={e=>sf({held_in_trust:e.target.checked})} style={{width:'16px',height:'16px',accentColor:'#6644ff'}}/>
@@ -894,11 +919,11 @@ export default function NetWorthPage() {
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
                       {lbl('Current Value ($)')}
-                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="0" style={inp}/>
+                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="1200000" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Cost Basis ($)','for gain/loss')}
-                      <input type="number" min="0" value={form.cost_basis} onChange={e=>sf({cost_basis:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Cost Basis ($)','total amount invested')}
+                      <input type="number" min="0" value={form.cost_basis} onChange={e=>sf({cost_basis:e.target.value})} placeholder="850000" style={inp}/>
                     </div>
                   </div>
                   {form.value&&form.cost_basis&&parseFloat(form.cost_basis)>0&&(
@@ -908,12 +933,12 @@ export default function NetWorthPage() {
                   )}
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px'}}>
                     <div>
-                      {lbl('Ticker','optional')}
-                      <input value={form.ticker} onChange={e=>sf({ticker:e.target.value})} placeholder="e.g. AAPL" style={inp}/>
+                      {lbl('Ticker','if single stock')}
+                      <input value={form.ticker} onChange={e=>sf({ticker:e.target.value})} placeholder="AAPL" style={inp}/>
                     </div>
                     <div>
                       {lbl('Shares','optional')}
-                      <input type="number" value={form.shares} onChange={e=>sf({shares:e.target.value})} placeholder="0" style={inp}/>
+                      <input type="number" value={form.shares} onChange={e=>sf({shares:e.target.value})} placeholder="320" style={inp}/>
                     </div>
                     <div>
                       {lbl('Brokerage')}
@@ -921,8 +946,8 @@ export default function NetWorthPage() {
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','optional')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="e.g. Kahan Family LLC" style={inp}/>
+                    {lbl('Entity / Trust','if held in entity')}
+                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family LLC" style={inp}/>
                   </div>
                 </>)}
 
@@ -930,27 +955,27 @@ export default function NetWorthPage() {
                 {form.category==='Bank Account' && (<>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Balance ($)')}
-                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Current Balance ($)')}
+                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="42000" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Last 4 Digits','optional')}
+                      {lbl('Account Last 4 Digits')}
                       <input maxLength={4} value={form.account_last4} onChange={e=>sf({account_last4:e.target.value.replace(/\D/g,'').slice(0,4)})} placeholder="4821" style={inp}/>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Institution')}
-                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="e.g. Chase" style={inp}/>
+                      {lbl('Bank / Institution')}
+                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="Chase" style={inp}/>
                     </div>
                     <div>
-                      {lbl('APY (%)','if savings')}
+                      {lbl('APY (%)','for savings / HYSA')}
                       <input type="number" step="0.01" value={form.apy} onChange={e=>sf({apy:e.target.value})} placeholder="4.85" style={inp}/>
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','optional')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="e.g. Kahan Family Trust" style={inp}/>
+                    {lbl('Entity / Trust','if held in entity')}
+                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
                   </div>
                 </>)}
 
@@ -964,42 +989,42 @@ export default function NetWorthPage() {
                       </select>
                     </div>
                     <div>
-                      {lbl('Vintage Year')}
+                      {lbl('Vintage Year','year fund launched')}
                       <input type="number" value={form.vintage_year} onChange={e=>sf({vintage_year:e.target.value})} placeholder="2022" style={inp}/>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Committed Amount ($)')}
-                      <input type="number" value={form.committed_amount} onChange={e=>sf({committed_amount:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl('Amount Committed ($)')}
+                      <input type="number" value={form.committed_amount} onChange={e=>sf({committed_amount:e.target.value})} placeholder="300000" style={inp}/>
                     </div>
                     <div>
                       {lbl('Current Value ($)')}
-                      <input required type="number" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="0" style={inp}/>
+                      <input required type="number" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="280000" style={inp}/>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px'}}>
                     <div>
-                      {lbl('% Called')}
+                      {lbl('% Capital Called')}
                       <input type="number" min="0" max="100" value={form.called_pct} onChange={e=>sf({called_pct:e.target.value})} placeholder="68" style={inp}/>
                     </div>
                     <div>
-                      {lbl('TVPI')}
+                      {lbl('TVPI Multiple')}
                       <input type="number" step="0.01" value={form.tvpi} onChange={e=>sf({tvpi:e.target.value})} placeholder="1.39" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Valuation Date')}
+                      {lbl('Last Valuation')}
                       <input value={form.valuation_date} onChange={e=>sf({valuation_date:e.target.value})} placeholder="Q1 2026" style={inp}/>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Fund Manager')}
-                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="e.g. Sequoia" style={inp}/>
+                      {lbl('Fund Manager / GP')}
+                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="Sequoia Capital" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Entity / LP','optional')}
-                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="e.g. Kahan Capital LP" style={inp}/>
+                      {lbl('Holding Entity / LP')}
+                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Capital LP" style={inp}/>
                     </div>
                   </div>
                 </>)}
@@ -1008,17 +1033,19 @@ export default function NetWorthPage() {
                 {['Business','Life Insurance','Other'].includes(form.category) && (<>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
                     <div>
-                      {lbl('Value ($)')}
-                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})} placeholder="0" style={inp}/>
+                      {lbl(form.category==='Life Insurance'?'Death Benefit / Cash Value ($)':'Estimated Value ($)')}
+                      <input required type="number" min="0" value={form.value} onChange={e=>sf({value:e.target.value})}
+                        placeholder={form.category==='Life Insurance'?'500000':form.category==='Business'?'1200000':'100000'} style={inp}/>
                     </div>
                     <div>
-                      {lbl('Institution / Carrier')}
-                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="Optional" style={inp}/>
+                      {lbl(form.category==='Life Insurance'?'Insurance Carrier':'Company / Firm')}
+                      <input value={form.institution} onChange={e=>sf({institution:e.target.value})}
+                        placeholder={form.category==='Life Insurance'?'Northwestern Mutual':form.category==='Business'?'Private — no broker':'Optional'} style={inp}/>
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','optional')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="e.g. Kahan Family Trust" style={inp}/>
+                    {lbl('Entity / Trust','if held in entity')}
+                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
                   </div>
                 </>)}
 
