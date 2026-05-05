@@ -89,7 +89,7 @@ export async function POST(req: Request) {
 function inferCategory(accounts: any[]): string {
   const types = accounts.map(a => a.type)
   if (types.includes('investment')) return 'investment'
+  if (types.includes('credit') && !types.includes('depository')) return 'credit'
   if (types.includes('depository')) return 'banking'
-  if (types.includes('credit')) return 'banking'
   return 'banking'
 }

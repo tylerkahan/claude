@@ -90,20 +90,32 @@ export default function NetWorthPage() {
     await load(user.id)
   }
 
+  // ── Credit card detection (by category or account_type) ─────
+  // A balance row is a liability if its connected account is category='credit'
+  // OR if the account_type contains 'credit' (catches legacy data tagged as banking)
+  const isCreditBalance = (b: any) => {
+    const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+    return conn?.category === 'credit' || (b.account_type || '').toLowerCase().includes('credit')
+  }
+
   // ── Computed values ──────────────────────────────────────
   const manualTotal = assets.reduce((s, a) => s + (a.value || 0), 0)
-  const connectedTotal = accountBalances.reduce((s, b) => s + (b.current_balance || 0), 0)
+  // Only count non-credit balances as assets
+  const connectedTotal = accountBalances.filter(b => !isCreditBalance(b)).reduce((s, b) => s + (b.current_balance || 0), 0)
   const grandTotal = manualTotal + connectedTotal
   const totalMortgages = assets.reduce((s, a) => s + (a.mortgage || 0), 0)
-  const netWorth = grandTotal - totalMortgages
+  const totalCreditCards = accountBalances.filter(isCreditBalance).reduce((s, b) => s + (b.current_balance || 0), 0)
+  const totalLiabilities = totalMortgages + totalCreditCards
+  const netWorth = grandTotal - totalLiabilities
 
-  // Build unified allocation map
+  // Build unified allocation map (assets only — no liabilities)
   const alloc: Record<string, number> = {}
   assets.forEach(a => { alloc[a.category] = (alloc[a.category] || 0) + (a.value || 0) })
   connectedAccounts.forEach(conn => {
+    if (conn.category === 'credit') return // skip — it's a liability
     const catMap: Record<string, string> = { banking: 'Bank Account', investment: 'Investment Account', crypto: 'Crypto', real_estate: 'Real Estate' }
     const label = catMap[conn.category] || conn.category
-    const bal = accountBalances.filter(b => b.connected_account_id === conn.id).reduce((s, b) => s + (b.current_balance || 0), 0)
+    const bal = accountBalances.filter(b => b.connected_account_id === conn.id && !isCreditBalance(b)).reduce((s, b) => s + (b.current_balance || 0), 0)
     alloc[label] = (alloc[label] || 0) + bal
   })
   const allocEntries = Object.entries(alloc).sort(([, a], [, b]) => b - a)
@@ -129,6 +141,13 @@ export default function NetWorthPage() {
   const connBanking = connectedAccounts.filter(c => c.category === 'banking')
   const crypto = assets.filter(a => a.category === 'Crypto')
   const connCrypto = connectedAccounts.filter(c => c.category === 'crypto')
+  // Credit cards — liabilities
+  const connCredit = connectedAccounts.filter(c => c.category === 'credit')
+  // Also pick up any credit-type balances under banking connections (legacy)
+  const legacyCreditBalances = accountBalances.filter(b => {
+    const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+    return conn?.category === 'banking' && (b.account_type || '').toLowerCase().includes('credit')
+  })
 
   const reTotal = [...realEstate, ...connRealEstate].reduce((s, item) => {
     if (item.value) return s + item.value
@@ -220,8 +239,10 @@ export default function NetWorthPage() {
             </div>
             <div style={card}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '10px' }}>Total Liabilities</div>
-              <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: totalMortgages > 0 ? '#ff6060' : '#6b7ab8', marginBottom: '4px' }}>{totalMortgages > 0 ? fmt(totalMortgages) : '$0'}</div>
-              <div style={{ fontSize: '11px', color: '#6b7ab8' }}>{totalMortgages > 0 ? `${assets.filter(a => a.mortgage > 0).length} mortgage${assets.filter(a => a.mortgage > 0).length > 1 ? 's' : ''}` : 'Add mortgage when entering RE'}</div>
+              <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: totalLiabilities > 0 ? '#ff6060' : '#6b7ab8', marginBottom: '4px' }}>{totalLiabilities > 0 ? fmt(totalLiabilities) : '$0'}</div>
+              <div style={{ fontSize: '11px', color: '#6b7ab8' }}>
+                {[totalMortgages > 0 && 'mortgage', totalCreditCards > 0 && 'credit cards'].filter(Boolean).join(' · ') || 'Mortgages + credit cards'}
+              </div>
             </div>
             <div style={card}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '10px' }}>Asset Classes</div>
@@ -442,7 +463,7 @@ export default function NetWorthPage() {
                       </div>
                     ))}
                     {connBanking.map(conn =>
-                      accountBalances.filter(b => b.connected_account_id === conn.id).map(b => (
+                      accountBalances.filter(b => b.connected_account_id === conn.id && !isCreditBalance(b)).map(b => (
                         <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(0,100,255,0.08)' }}>
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{b.account_name}</div>
@@ -483,6 +504,40 @@ export default function NetWorthPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Credit Cards (Liabilities) ──────────────────── */}
+          {(connCredit.length > 0 || legacyCreditBalances.length > 0) && (
+            <>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#ff6060', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                Credit Cards · <span style={{ color: '#ff6060' }}>-{fmt(totalCreditCards)}</span>
+              </div>
+              <div style={{ ...card, borderColor: 'rgba(255,96,96,0.18)', marginBottom: '20px' }}>
+                {connCredit.map(conn =>
+                  accountBalances.filter(b => b.connected_account_id === conn.id).map(b => (
+                    <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,96,96,0.08)' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{b.account_name}</div>
+                        <div style={{ fontSize: '11px', color: '#6b7ab8' }}>{conn.institution_name} · <span style={{ color: '#00cc66' }}>● Live</span></div>
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#ff6060' }}>-{fmtFull(b.current_balance || 0)}</div>
+                    </div>
+                  ))
+                )}
+                {legacyCreditBalances.map(b => {
+                  const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+                  return (
+                    <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,96,96,0.08)' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{b.account_name}</div>
+                        <div style={{ fontSize: '11px', color: '#6b7ab8' }}>{conn?.institution_name} · <span style={{ color: '#00cc66' }}>● Live</span></div>
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#ff6060' }}>-{fmtFull(b.current_balance || 0)}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {/* ── Monthly Snapshot ────────────────────────────── */}
