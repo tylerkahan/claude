@@ -37,7 +37,7 @@ export default function NetWorthPage() {
   const [accountBalances, setAccountBalances] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', category: 'Real Estate', value: '', institution: '' })
+  const [form, setForm] = useState({ name: '', category: 'Real Estate', value: '', institution: '', mortgage: '' })
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('1Y')
   const router = useRouter()
@@ -73,8 +73,9 @@ export default function NetWorthPage() {
     await supabase.from('assets').insert({
       user_id: user.id, name: form.name, category: form.category,
       value: parseFloat(form.value) || 0, institution: form.institution,
+      mortgage: form.category === 'Real Estate' ? (parseFloat(form.mortgage) || 0) : 0,
     })
-    setForm({ name: '', category: 'Real Estate', value: '', institution: '' })
+    setForm({ name: '', category: 'Real Estate', value: '', institution: '', mortgage: '' })
     setShowForm(false)
     await load(user.id)
     setSaving(false)
@@ -91,6 +92,8 @@ export default function NetWorthPage() {
   const manualTotal = assets.reduce((s, a) => s + (a.value || 0), 0)
   const connectedTotal = accountBalances.reduce((s, b) => s + (b.current_balance || 0), 0)
   const grandTotal = manualTotal + connectedTotal
+  const totalMortgages = assets.reduce((s, a) => s + (a.mortgage || 0), 0)
+  const netWorth = grandTotal - totalMortgages
 
   // Build unified allocation map
   const alloc: Record<string, number> = {}
@@ -189,7 +192,7 @@ export default function NetWorthPage() {
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: '6px' }}>LIVE NET WORTH</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: '42px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: '#fff' }}>
-                  {grandTotal > 0 ? fmtFull(grandTotal) : '$0'}
+                  {grandTotal > 0 ? fmtFull(netWorth) : '$0'}
                 </div>
                 {grandTotal > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '100px', background: 'rgba(0,204,102,0.1)', border: '1px solid rgba(0,204,102,0.2)', color: '#00cc66' }}>
@@ -211,12 +214,12 @@ export default function NetWorthPage() {
             <div style={card}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '10px' }}>Total Assets</div>
               <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: '#fff', marginBottom: '4px' }}>{fmt(grandTotal)}</div>
-              <div style={{ fontSize: '11px', color: '#00cc66', fontWeight: 600 }}>↑ Across all accounts</div>
+              <div style={{ fontSize: '11px', color: '#00cc66', fontWeight: 600 }}>↑ Gross · across all accounts</div>
             </div>
             <div style={card}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '10px' }}>Total Liabilities</div>
-              <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: '#ff6060', marginBottom: '4px' }}>$0</div>
-              <div style={{ fontSize: '11px', color: '#6b7ab8' }}>Add liabilities manually</div>
+              <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif", color: totalMortgages > 0 ? '#ff6060' : '#6b7ab8', marginBottom: '4px' }}>{totalMortgages > 0 ? fmt(totalMortgages) : '$0'}</div>
+              <div style={{ fontSize: '11px', color: '#6b7ab8' }}>{totalMortgages > 0 ? `${assets.filter(a => a.mortgage > 0).length} mortgage${assets.filter(a => a.mortgage > 0).length > 1 ? 's' : ''}` : 'Add mortgage when entering RE'}</div>
             </div>
             <div style={card}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '10px' }}>Asset Classes</div>
@@ -342,10 +345,20 @@ export default function NetWorthPage() {
                         <button onClick={() => deleteAsset(a.id)} style={{ background: 'none', border: 'none', color: '#3d4a7a', cursor: 'pointer', fontSize: '14px' }}>×</button>
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: a.mortgage > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <div style={{ fontSize: '10px', color: '#3d4a7a', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '3px' }}>Estimated Value</div>
-                        <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff', fontFamily: "'Space Grotesk',sans-serif" }}>{fmtFull(a.value || 0)}</div>
+                        <div style={{ fontSize: '10px', color: '#3d4a7a', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '3px' }}>Property Value</div>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', fontFamily: "'Space Grotesk',sans-serif" }}>{fmtFull(a.value || 0)}</div>
+                      </div>
+                      {a.mortgage > 0 && (
+                        <div>
+                          <div style={{ fontSize: '10px', color: '#3d4a7a', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '3px' }}>Mortgage</div>
+                          <div style={{ fontSize: '18px', fontWeight: 700, color: '#ff6060', fontFamily: "'Space Grotesk',sans-serif" }}>-{fmtFull(a.mortgage)}</div>
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: '10px', color: '#3d4a7a', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '3px' }}>Equity</div>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: '#00cc66', fontFamily: "'Space Grotesk',sans-serif" }}>{fmtFull((a.value || 0) - (a.mortgage || 0))}</div>
                       </div>
                     </div>
                   </div>
@@ -538,7 +551,7 @@ export default function NetWorthPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Value ($)</label>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{form.category === 'Real Estate' ? 'Property Value ($)' : 'Value ($)'}</label>
                     <input required type="number" min="0" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder="0" style={inputStyle} />
                   </div>
                   <div>
@@ -546,8 +559,19 @@ export default function NetWorthPage() {
                     <input value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} placeholder="Optional" style={inputStyle} />
                   </div>
                 </div>
+                {form.category === 'Real Estate' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Mortgage Balance ($) <span style={{ color: '#3d4a7a', textTransform: 'none', fontWeight: 400 }}>— optional</span></label>
+                    <input type="number" min="0" value={form.mortgage} onChange={e => setForm(f => ({ ...f, mortgage: e.target.value }))} placeholder="0" style={inputStyle} />
+                    {form.value && form.mortgage && parseFloat(form.value) > 0 && (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#00cc66', fontWeight: 600 }}>
+                        Equity: {fmtFull(Math.max(0, parseFloat(form.value) - parseFloat(form.mortgage || '0')))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
-                  <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                  <button type="button" onClick={() => { setShowForm(false); setForm({ name: '', category: 'Real Estate', value: '', institution: '', mortgage: '' }) }} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
                   <button type="submit" disabled={saving} style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>{saving ? 'Saving...' : 'Add Asset'}</button>
                 </div>
               </form>
