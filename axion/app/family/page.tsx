@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const ACCESS_LEVELS = ['Full Access', 'View Only', 'Emergency Only']
 const ACCESS_COLORS: Record<string, string> = {
@@ -67,6 +68,7 @@ export default function FamilyPage() {
           <button onClick={() => setShowForm(!showForm)} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Member</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <AIPageInsight page="family" />
 
         {/* Info banner */}
         <div style={{ background: 'rgba(0,100,255,0.06)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '14px', padding: '18px 22px', marginBottom: '24px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>

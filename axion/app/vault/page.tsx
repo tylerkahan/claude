@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const CATEGORIES = ['Will', 'Trust', 'Power of Attorney', 'Insurance', 'Property Deed', 'Tax Return', 'Other']
 
@@ -99,6 +100,7 @@ export default function VaultPage() {
             onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} />
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <AIPageInsight page="vault" />
 
         {/* Drop zone */}
         <div

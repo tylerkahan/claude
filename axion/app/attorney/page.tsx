@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const NETWORK_ATTORNEYS = [
   { initials: 'MW', name: 'Marcus Webb, Esq.', title: 'Estate Planning Attorney', firm: 'Webb & Associates, Austin TX', rating: 4.9, reviews: 52, tags: ['Wills & Trusts', 'Tax Planning', 'Probate', 'Texas'], color: '#0055ff' },
@@ -64,6 +65,7 @@ export default function AttorneyPage() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+          <AIPageInsight page="attorney" />
 
           {submitted && (
             <div style={{ background: 'rgba(0,204,102,0.08)', border: '1px solid rgba(0,204,102,0.25)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>

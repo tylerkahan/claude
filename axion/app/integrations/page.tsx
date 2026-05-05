@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+ import AIPageInsight from '@/components/AIPageInsight'
 
 // ── Types ─────────────────────────────────────────────────
 type ConnectedAccount = {
@@ -268,6 +269,8 @@ export default function IntegrationsPage() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+
+          <AIPageInsight page="integrations" />
 
           {/* Summary cards (if any connected) */}
           {grandTotal > 0 && (

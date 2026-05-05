@@ -15,6 +15,8 @@ async function getUserContext(supabase: any, userId: string): Promise<string> {
     { data: connectedAccounts },
     { data: accountBalances },
     { data: documents },
+    { data: digitalAssets },
+    { data: entities },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('assets').select('*').eq('user_id', userId),
@@ -24,6 +26,8 @@ async function getUserContext(supabase: any, userId: string): Promise<string> {
     supabase.from('connected_accounts').select('*').eq('user_id', userId),
     supabase.from('account_balances').select('*').eq('user_id', userId),
     supabase.from('documents').select('*').eq('user_id', userId),
+    supabase.from('digital_assets').select('*').eq('user_id', userId),
+    supabase.from('entities').select('*').eq('user_id', userId),
   ])
 
   const engineData = {
@@ -35,6 +39,8 @@ async function getUserContext(supabase: any, userId: string): Promise<string> {
     connectedAccounts: connectedAccounts ?? [],
     accountBalances: accountBalances ?? [],
     documents: documents ?? [],
+    digitalAssets: digitalAssets ?? [],
+    entities: entities ?? [],
   }
 
   const recommendations = buildRecommendations(engineData)

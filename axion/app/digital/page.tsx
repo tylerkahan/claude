@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const TYPES = ['Crypto Wallet', 'Exchange Account', 'Email', 'Social Media', 'Streaming', 'Domain/Website', 'Password Manager', 'Banking App', 'Other']
 const TYPE_ICONS: Record<string, string> = {
@@ -84,6 +85,7 @@ export default function DigitalPage() {
           <button onClick={() => setShowForm(!showForm)} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Account</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <AIPageInsight page="digital" />
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>

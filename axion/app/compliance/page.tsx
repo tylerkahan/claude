@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const CHECKLIST = [
   { id: 'will', category: 'Legal', title: 'Last Will & Testament', desc: 'A signed, witnessed will directing asset distribution', priority: 'critical' },
@@ -82,6 +83,7 @@ export default function CompliancePage() {
           <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '10px' }}>Estate readiness checklist</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <AIPageInsight page="compliance" />
 
         {/* Score cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>

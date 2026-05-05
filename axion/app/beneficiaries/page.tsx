@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const ROLES = ['Beneficiary', 'Executor', 'Trustee', 'Guardian', 'Healthcare Proxy', 'Power of Attorney']
 const RELATIONSHIPS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Business Partner', 'Other']
@@ -68,6 +69,7 @@ export default function BeneficiariesPage() {
           <button onClick={() => setShowForm(!showForm)} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Person</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <AIPageInsight page="beneficiaries" />
 
         {/* Add form */}
         {showForm && (

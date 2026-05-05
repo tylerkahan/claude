@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import AIPageInsight from '@/components/AIPageInsight'
 
 const ENTITY_TYPES = ['Grantor (You)', 'Revocable Trust', 'Irrevocable Trust', 'LLC', 'LP', 'Corporation', 'Asset']
 const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -74,6 +75,7 @@ export default function EntitiesPage() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+          <AIPageInsight page="entities" />
 
           {showForm && (
             <div style={{ background: 'rgba(8,14,40,0.9)', border: '1px solid rgba(0,100,255,0.25)', borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>

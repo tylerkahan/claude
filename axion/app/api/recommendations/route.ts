@@ -17,6 +17,8 @@ export async function GET() {
       { data: connectedAccounts },
       { data: accountBalances },
       { data: documents },
+      { data: digitalAssets },
+      { data: entities },
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('assets').select('*').eq('user_id', user.id),
@@ -26,6 +28,8 @@ export async function GET() {
       supabase.from('connected_accounts').select('*').eq('user_id', user.id),
       supabase.from('account_balances').select('*').eq('user_id', user.id),
       supabase.from('documents').select('*').eq('user_id', user.id),
+      supabase.from('digital_assets').select('*').eq('user_id', user.id),
+      supabase.from('entities').select('*').eq('user_id', user.id),
     ])
 
     const recommendations = buildRecommendations({
@@ -37,6 +41,8 @@ export async function GET() {
       connectedAccounts: connectedAccounts ?? [],
       accountBalances: accountBalances ?? [],
       documents: documents ?? [],
+      digitalAssets: digitalAssets ?? [],
+      entities: entities ?? [],
     })
 
     return NextResponse.json({ recommendations, profile })

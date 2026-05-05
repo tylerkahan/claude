@@ -32,6 +32,8 @@ interface EngineInput {
   connectedAccounts: any[]
   accountBalances: any[]
   documents: any[]
+  digitalAssets?: any[]
+  entities?: any[]
 }
 
 export function buildRecommendations(data: EngineInput): Recommendation[] {
@@ -178,7 +180,7 @@ export function buildRecommendations(data: EngineInput): Recommendation[] {
 
 export function buildAIContext(data: EngineInput & { recommendations: Recommendation[] }): string {
   const { profile, assets, beneficiaries, compliance, familyMembers,
-          connectedAccounts, accountBalances, recommendations } = data
+          connectedAccounts, accountBalances, digitalAssets, entities, recommendations } = data
 
   const hasCheck = (id: string) => compliance?.some((c: any) => c.check_id === id && c.completed) ?? false
   const manualValue = assets?.reduce((s: number, a: any) => s + (a.value || 0), 0) ?? 0
@@ -226,6 +228,12 @@ ${beneficiaries?.length ? beneficiaries.map((b: any) => `  - ${b.full_name} (${b
 
 FAMILY MEMBERS (${familyMembers?.length || 0}):
 ${familyMembers?.length ? familyMembers.map((f: any) => `  - ${f.name} (${f.relationship})`).join('\n') : '  - None added'}
+
+DIGITAL ASSETS (${digitalAssets?.length || 0}):
+${digitalAssets?.length ? digitalAssets.map((d: any) => `  - ${d.platform} (${d.type}): ${fmt(d.estimated_value || 0)}`).join('\n') : '  - None recorded'}
+
+BUSINESS ENTITIES (${entities?.length || 0}):
+${entities?.length ? entities.map((e: any) => `  - ${e.name} (${e.type || 'Unknown type'})`).join('\n') : '  - None recorded'}
 
 PRIORITY GAPS:
 ${gapLines}

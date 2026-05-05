@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+ import AIPageInsight from '@/components/AIPageInsight'
 import Link from 'next/link'
 
 const MANUAL_CATEGORIES = ['Real Estate', 'Investment Account', 'Bank Account', 'Crypto', 'Business', 'Life Insurance', 'Other']
@@ -126,6 +127,8 @@ export default function NetWorthPage() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+
+          <AIPageInsight page="networth" />
 
           {/* Grand total hero */}
           <div style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '20px', padding: '28px 32px', marginBottom: '20px' }}>
