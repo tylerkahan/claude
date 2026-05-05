@@ -248,6 +248,23 @@ export default function NetWorthPage() {
   const entityEntries = Object.entries(entityAlloc).sort(([,a],[,b])=>b-a)
   const entityColors = ['#6644ff','#00cc66','#f7931a','#0099ff','#ff6688']
 
+  // Entity ownership tree
+  const entityTree: Record<string, { label: string; assets: any[]; value: number; color: string }> = {}
+  const entityTreeColors = ['#6644ff','#00cc66','#f7931a','#0099ff','#ff6688','#ffaa00','#6b7ab8']
+  let etcIdx = 0
+  assets.forEach(a => {
+    const m = a.metadata || {}
+    const key = m.entity_name || '__personal__'
+    if (!entityTree[key]) entityTree[key] = { label: key === '__personal__' ? 'Personal (no entity)' : key, assets: [], value: 0, color: key === '__personal__' ? '#3d4a7a' : entityTreeColors[etcIdx++ % entityTreeColors.length] }
+    entityTree[key].assets.push(a)
+    entityTree[key].value += (a.value || 0)
+  })
+  // Add entity-table entities that have no assets yet
+  entities.forEach(e => {
+    if (!entityTree[e.name]) entityTree[e.name] = { label: e.name, assets: [], value: 0, color: entityTreeColors[etcIdx++ % entityTreeColors.length] }
+  })
+  const entityTreeEntries = Object.entries(entityTree).sort(([ka, a], [kb, b]) => ka === '__personal__' ? 1 : kb === '__personal__' ? -1 : b.value - a.value)
+
   // Chart
   const months = ['May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr']
   const chartPoints = netWorth > 0 ? months.map((_,i) => netWorth*(0.875+(i/months.length)*0.125)) : months.map(()=>0)
@@ -265,6 +282,8 @@ export default function NetWorthPage() {
       <style>{`
         @keyframes axion-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         .axion-dot{width:5px;height:5px;border-radius:50%;background:#00cc66;box-shadow:0 0 6px #00cc66;display:inline-block;animation:axion-pulse 1.5s infinite}
+        input::placeholder,textarea::placeholder{color:#4a5580 !important;opacity:1}
+        select option{background:#060818;color:#e8eaf6}
       `}</style>
 
       <Sidebar email={user?.email} />
@@ -439,9 +458,8 @@ export default function NetWorthPage() {
           </div>
 
           {/* ── Real Estate ── */}
-          {(realEstate.length>0||connRealEstate.length>0) && (
-            <>
-              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Real Estate · {fmtFull(reTotal)}</div>
+          <>
+              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Real Estate{reTotal>0?` · ${fmtFull(reTotal)}`:''}</div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:'16px',marginBottom:'20px'}}>
                 {realEstate.map(a => {
                   const m = a.metadata || {}
@@ -527,17 +545,25 @@ export default function NetWorthPage() {
                   <button onClick={()=>{setForm({...EMPTY_FORM,category:'Real Estate'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Property</button>
                 </div>
               </div>
-            </>
-          )}
+          </>
 
           {/* ── Equities & ETFs ── */}
-          {(investments.length>0||connInvestments.length>0) && (
-            <>
-              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Equities &amp; ETFs · {fmtFull(invTotal)}</div>
+          <>
+              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Equities &amp; ETFs{invTotal>0?` · ${fmtFull(invTotal)}`:''}</div>
               <div style={{...card,marginBottom:'20px'}}>
+                {investments.length===0&&connInvestments.length===0 ? (
+                  <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>No investment accounts tracked yet</div>
+                    <div style={{display:'flex',gap:'8px'}}>
+                      <button onClick={()=>{setForm({...EMPTY_FORM,category:'Investment Account'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Manually</button>
+                      <Link href="/integrations" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'8px',color:'#00cc66',fontSize:'12px',textDecoration:'none'}}>Connect Brokerage →</Link>
+                    </div>
+                  </div>
+                ) : (
                 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',paddingBottom:'10px',borderBottom:'1px solid rgba(0,100,255,0.1)',fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.1em',textTransform:'uppercase'}}>
                   <span>Holding</span><span style={{textAlign:'right'}}>Shares</span><span style={{textAlign:'right'}}>Ticker</span><span style={{textAlign:'right'}}>Value</span><span style={{textAlign:'right'}}>Gain / Loss</span>
                 </div>
+                )}
                 {investments.map(a => {
                   const m = a.metadata || {}
                   const gain = m.cost_basis && a.value ? (a.value - m.cost_basis) : null
@@ -597,120 +623,135 @@ export default function NetWorthPage() {
                 })}
               </div>
             </>
-          )}
 
           {/* ── Private Equity ── */}
-          {privateEquity.length>0 && (
-            <>
-              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Private Equity · {fmtFull(peTotal)}</div>
-              <div style={{...card,marginBottom:'20px'}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',paddingBottom:'12px',borderBottom:'1px solid rgba(0,100,255,0.1)',fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.1em',textTransform:'uppercase'}}>
-                  <span>Fund</span><span style={{textAlign:'right'}}>Current Value</span>
+          <>
+            <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Private Equity{peTotal>0?` · ${fmtFull(peTotal)}`:''}</div>
+            <div style={{...card,marginBottom:'20px'}}>
+              {privateEquity.length === 0 ? (
+                <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div style={{fontSize:'13px',color:'#3d4a7a'}}>No PE funds tracked yet</div>
+                  <button onClick={()=>{setForm({...EMPTY_FORM,category:'Private Equity'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(102,68,255,0.3)',borderRadius:'8px',color:'#9966ff',fontSize:'12px',cursor:'pointer'}}>+ Add Fund</button>
                 </div>
-                {privateEquity.map((a,idx) => {
-                  const m = a.metadata || {}
-                  const calledPct = m.called_pct || 0
-                  const committed = m.committed_amount || 0
-                  const gain = committed > 0 && a.value ? a.value - (committed * (calledPct/100)) : null
-                  return (
-                    <div key={a.id} style={{padding:'12px 0',borderBottom:idx<privateEquity.length-1?'1px solid rgba(0,100,255,0.06)':'none'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
-                        <div>
-                          <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{a.name}</div>
-                          <div style={{fontSize:'11px',color:'#6b7ab8'}}>
-                            {[m.fund_type,m.vintage_year&&`${m.vintage_year} vintage`,committed>0&&`Committed ${fmt(committed)}`].filter(Boolean).join(' · ')}
-                            {m.entity_name&&<> · <span style={{color:'#9966ff'}}>{m.entity_name}</span></>}
-                          </div>
-                        </div>
-                        <div style={{textAlign:'right'}}>
-                          <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(a.value||0)}</div>
-                          {gain!==null && <div style={{fontSize:'11px',color:'#00cc66'}}>{gain>=0?'+':''}{fmt(gain)}{m.tvpi&&` TVPI ${m.tvpi}×`}</div>}
-                        </div>
-                      </div>
-                      {calledPct > 0 && (
-                        <>
-                          <div style={{height:'4px',background:'rgba(255,255,255,0.05)',borderRadius:'2px',overflow:'hidden',marginTop:'8px'}}>
-                            <div style={{width:`${calledPct}%`,height:'100%',background:'linear-gradient(90deg,#6644ff,#9966ff)',borderRadius:'2px'}}/>
-                          </div>
-                          <div style={{display:'flex',justifyContent:'space-between',fontSize:'10px',color:'#3d4a7a',marginTop:'3px'}}>
-                            <span>Called {calledPct}%</span>
-                            {m.valuation_date&&<span>{m.valuation_date} valuation</span>}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {/* ── Cash & Banking + Crypto ── */}
-          {(banking.length>0||connBanking.length>0||crypto.length>0||connCrypto.length>0) && (
-            <div style={{display:'grid',gridTemplateColumns:cashTotal>0&&cryptoTotal>0?'1.4fr 1fr':'1fr',gap:'16px',marginBottom:'20px'}}>
-              {(banking.length>0||connBanking.length>0) && (
-                <div>
-                  <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Cash &amp; Banking · {fmt(cashTotal)}</div>
-                  <div style={card}>
-                    {banking.map(a => {
-                      const m = a.metadata || {}
-                      return (
-                        <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(0,100,255,0.08)'}}>
+              ) : (
+                <>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',paddingBottom:'12px',borderBottom:'1px solid rgba(0,100,255,0.1)',fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.1em',textTransform:'uppercase'}}>
+                    <span>Fund</span><span style={{textAlign:'right'}}>Current Value</span>
+                  </div>
+                  {privateEquity.map((a,idx) => {
+                    const m = a.metadata || {}
+                    const calledPct = m.called_pct || 0
+                    const committed = m.committed_amount || 0
+                    const gain = committed > 0 && a.value ? a.value - (committed * (calledPct/100)) : null
+                    return (
+                      <div key={a.id} style={{padding:'12px 0',borderBottom:idx<privateEquity.length-1?'1px solid rgba(0,100,255,0.06)':'none'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
                           <div>
                             <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{a.name}</div>
                             <div style={{fontSize:'11px',color:'#6b7ab8'}}>
-                              {m.account_last4?`····${m.account_last4}`:'Manual'}
-                              {m.apy?` · ${m.apy}% APY`:''}
-                              {m.entity_name?` · ${m.entity_name}`:''}
+                              {[m.fund_type,m.vintage_year&&`${m.vintage_year} vintage`,committed>0&&`Committed ${fmt(committed)}`].filter(Boolean).join(' · ')}
+                              {m.entity_name&&<> · <span style={{color:'#9966ff'}}>{m.entity_name}</span></>}
                             </div>
                           </div>
-                          <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(a.value||0)}</div>
-                        </div>
-                      )
-                    })}
-                    {connBanking.map(conn =>
-                      accountBalances.filter(b=>b.connected_account_id===conn.id&&!isCreditBalance(b)).map(b => (
-                        <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(0,100,255,0.08)'}}>
-                          <div>
-                            <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                            <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span>{b.account_type?` · ${b.account_type}`:''}</div>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(a.value||0)}</div>
+                            {gain!==null && <div style={{fontSize:'11px',color:'#00cc66'}}>{gain>=0?'+':''}{fmt(gain)}{m.tvpi&&` TVPI ${m.tvpi}×`}</div>}
                           </div>
-                          <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(b.current_balance||0)}</div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-              {(crypto.length>0||connCrypto.length>0) && (
-                <div>
-                  <div style={{fontSize:'11px',fontWeight:700,color:'#f7931a',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Crypto · {fmt(cryptoTotal)}</div>
-                  <div style={{...card,borderColor:'rgba(247,147,26,0.18)'}}>
-                    {crypto.map(a => (
-                      <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(247,147,26,0.1)'}}>
-                        <div>
-                          <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{a.name}</div>
-                          <div style={{fontSize:'11px',color:'#6b7ab8'}}>Manual entry</div>
-                        </div>
-                        <div style={{fontSize:'13px',fontWeight:700,color:'#f7931a'}}>{fmtFull(a.value||0)}</div>
+                        {calledPct > 0 && (
+                          <>
+                            <div style={{height:'4px',background:'rgba(255,255,255,0.05)',borderRadius:'2px',overflow:'hidden',marginTop:'8px'}}>
+                              <div style={{width:`${calledPct}%`,height:'100%',background:'linear-gradient(90deg,#6644ff,#9966ff)',borderRadius:'2px'}}/>
+                            </div>
+                            <div style={{display:'flex',justifyContent:'space-between',fontSize:'10px',color:'#3d4a7a',marginTop:'3px'}}>
+                              <span>Called {calledPct}%</span>
+                              {m.valuation_date&&<span>{m.valuation_date} valuation</span>}
+                            </div>
+                          </>
+                        )}
                       </div>
-                    ))}
-                    {connCrypto.map(conn =>
-                      accountBalances.filter(b=>b.connected_account_id===conn.id).map(b => (
-                        <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(247,147,26,0.1)'}}>
-                          <div>
-                            <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                            <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
-                          </div>
-                          <div style={{fontSize:'13px',fontWeight:700,color:'#f7931a'}}>{fmtFull(b.current_balance||0)}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                    )
+                  })}
+                </>
               )}
             </div>
-          )}
+          </>
+
+          {/* ── Cash & Banking + Crypto ── */}
+          <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:'16px',marginBottom:'20px'}}>
+            <div>
+              <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Cash &amp; Banking{cashTotal>0?` · ${fmt(cashTotal)}`:''}</div>
+              <div style={card}>
+                {banking.length===0&&connBanking.length===0 ? (
+                  <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>No bank accounts tracked yet</div>
+                    <div style={{display:'flex',gap:'8px'}}>
+                      <button onClick={()=>{setForm({...EMPTY_FORM,category:'Bank Account'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Manually</button>
+                      <Link href="/integrations" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'8px',color:'#00cc66',fontSize:'12px',textDecoration:'none'}}>Connect Bank →</Link>
+                    </div>
+                  </div>
+                ) : null}
+                {banking.map(a => {
+                  const m = a.metadata || {}
+                  return (
+                    <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(0,100,255,0.08)'}}>
+                      <div>
+                        <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{a.name}</div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>
+                          {m.account_last4?`····${m.account_last4}`:'Manual'}
+                          {m.apy?` · ${m.apy}% APY`:''}
+                          {m.entity_name?` · ${m.entity_name}`:''}
+                        </div>
+                      </div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(a.value||0)}</div>
+                    </div>
+                  )
+                })}
+                {connBanking.map(conn =>
+                  accountBalances.filter(b=>b.connected_account_id===conn.id&&!isCreditBalance(b)).map(b => (
+                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(0,100,255,0.08)'}}>
+                      <div>
+                        <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span>{b.account_type?` · ${b.account_type}`:''}</div>
+                      </div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(b.current_balance||0)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:'11px',fontWeight:700,color:'#f7931a',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Crypto{cryptoTotal>0?` · ${fmt(cryptoTotal)}`:''}</div>
+              <div style={{...card,borderColor:'rgba(247,147,26,0.18)'}}>
+                {crypto.length===0&&connCrypto.length===0 ? (
+                  <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>No crypto tracked yet</div>
+                    <Link href="/integrations" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(247,147,26,0.2)',borderRadius:'8px',color:'#f7931a',fontSize:'12px',textDecoration:'none'}}>Connect Exchange →</Link>
+                  </div>
+                ) : null}
+                {crypto.map(a => (
+                  <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(247,147,26,0.1)'}}>
+                    <div>
+                      <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{a.name}</div>
+                      <div style={{fontSize:'11px',color:'#6b7ab8'}}>Manual entry</div>
+                    </div>
+                    <div style={{fontSize:'13px',fontWeight:700,color:'#f7931a'}}>{fmtFull(a.value||0)}</div>
+                  </div>
+                ))}
+                {connCrypto.map(conn =>
+                  accountBalances.filter(b=>b.connected_account_id===conn.id).map(b => (
+                    <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(247,147,26,0.1)'}}>
+                      <div>
+                        <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
+                      </div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:'#f7931a'}}>{fmtFull(b.current_balance||0)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* ── Liabilities ── */}
           {(true) && (
@@ -781,6 +822,67 @@ export default function NetWorthPage() {
               </div>
             </>
           )}
+
+          {/* ── Entity Ownership Tree ── */}
+          <>
+            <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Entity Ownership Structure</div>
+            {entityTreeEntries.length === 0 ? (
+              <div style={{...card,marginBottom:'20px',padding:'24px',textAlign:'center'}}>
+                <div style={{fontSize:'13px',color:'#3d4a7a',marginBottom:'12px'}}>No entities or ownership structure defined yet</div>
+                <div style={{fontSize:'12px',color:'#3d4a7a',marginBottom:'16px'}}>Assign assets to a trust, LLC, or LP when adding them to see the ownership tree here</div>
+                <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
+                  <button onClick={()=>setShowForm(true)} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Asset with Entity</button>
+                  <Link href="/entities" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(102,68,255,0.2)',borderRadius:'8px',color:'#9966ff',fontSize:'12px',textDecoration:'none'}}>Manage Entities →</Link>
+                </div>
+              </div>
+            ) : (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:'14px',marginBottom:'20px'}}>
+                {entityTreeEntries.map(([key, node]) => {
+                  const pct = grandTotal > 0 ? Math.round((node.value / grandTotal) * 100) : 0
+                  return (
+                    <div key={key} style={{...card,borderColor:`${node.color}22`}}>
+                      {/* Entity header */}
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                          <div style={{width:'10px',height:'10px',borderRadius:'3px',background:node.color,flexShrink:0}}/>
+                          <div>
+                            <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{node.label}</div>
+                            <div style={{fontSize:'11px',color:'#6b7ab8'}}>{node.assets.length} asset{node.assets.length!==1?'s':''} · {pct}% of portfolio</div>
+                          </div>
+                        </div>
+                        <div style={{fontSize:'15px',fontWeight:700,color:'#fff',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(node.value)}</div>
+                      </div>
+                      {/* Value bar */}
+                      <div style={{height:'4px',background:'rgba(255,255,255,0.05)',borderRadius:'2px',overflow:'hidden',marginBottom:'12px'}}>
+                        <div style={{width:`${pct}%`,height:'100%',background:`linear-gradient(90deg,${node.color}cc,${node.color}66)`,borderRadius:'2px'}}/>
+                      </div>
+                      {/* Asset list */}
+                      {node.assets.length > 0 ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                          {node.assets.map((a: any) => {
+                            const cat = a.category
+                            const catColor = CAT_COLORS[cat] || '#6b7ab8'
+                            return (
+                              <div key={a.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',background:'rgba(255,255,255,0.025)',borderRadius:'8px',border:`1px solid rgba(255,255,255,0.05)`}}>
+                                <div style={{width:'7px',height:'7px',borderRadius:'50%',background:catColor,flexShrink:0}}/>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontSize:'12px',fontWeight:600,color:'#e8eaf6',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.name}</div>
+                                  <div style={{fontSize:'10px',color:'#6b7ab8'}}>{cat}</div>
+                                </div>
+                                <div style={{fontSize:'12px',fontWeight:600,color:'#fff',flexShrink:0}}>{fmtFull(a.value||0)}</div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{fontSize:'12px',color:'#3d4a7a',textAlign:'center',padding:'10px 0'}}>Entity registered — no assets assigned yet</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
 
           {/* ── Monthly Snapshot ── */}
           {netWorth>0 && (
