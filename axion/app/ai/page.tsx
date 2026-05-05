@@ -94,7 +94,7 @@ export default function AIPage() {
       const data = await res.json()
       setMessages(m => [...m, {
         role: 'ai',
-        text: data.text || 'Sorry, I had trouble responding. Please try again.',
+        text: data.text || `Error: ${data.error || 'Unknown error — status ' + res.status}`,
       }])
     } catch {
       setMessages(m => [...m, { role: 'ai', text: 'Connection error. Please try again.' }])
