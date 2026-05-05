@@ -15,11 +15,13 @@ const CAT_COLORS: Record<string, string> = {
 }
 const MANUAL_CATEGORIES = ['Real Estate', 'Investment Account', 'Bank Account', 'Crypto', 'Business', 'Life Insurance', 'Other']
 
-const fmt = (n: number) => n >= 1_000_000
-  ? `$${(n / 1_000_000).toFixed(2)}M`
-  : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K`
-  : `$${n.toLocaleString()}`
-const fmtFull = (n: number) => `$${n.toLocaleString()}`
+const fmt = (n: number) => {
+  const r = Math.round(n)
+  return r >= 1_000_000 ? `$${(r / 1_000_000).toFixed(1)}M`
+    : r >= 1_000 ? `$${(r / 1_000).toFixed(0)}K`
+    : `$${r.toLocaleString()}`
+}
+const fmtFull = (n: number) => `$${Math.round(n).toLocaleString()}`
 
 // card style shared
 const card: React.CSSProperties = {
