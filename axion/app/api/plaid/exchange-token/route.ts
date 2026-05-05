@@ -30,10 +30,8 @@ export async function POST(req: Request) {
     const { public_token, metadata } = await req.json()
     const plaid = getPlaidClient()
 
-    // Exchange public token for access token
     const exchangeRes = await plaid.itemPublicTokenExchange({ public_token })
     const { access_token, item_id } = exchangeRes.data
-
     const institutionName = metadata?.institution?.name || 'Unknown Institution'
 
     // Fetch accounts and balances
@@ -57,8 +55,8 @@ export async function POST(req: Request) {
 
     if (connErr) throw connErr
 
-    // Save individual account balances
-    const balanceRows = accounts.map(acc => ({
+    // Save account balances
+    const balanceRows = accounts.map((acc: any) => ({
       user_id: user.id,
       connected_account_id: connectedAccount.id,
       plaid_account_id: acc.account_id,
@@ -68,17 +66,51 @@ export async function POST(req: Request) {
       currency_code: acc.balances.iso_currency_code || 'USD',
       last_updated: new Date().toISOString(),
     }))
-
     await supabase.from('account_balances').insert(balanceRows)
+
+    // Fetch and save investment holdings (if this is an investment account)
+    const hasInvestment = accounts.some((a: any) => a.type === 'investment')
+    let holdingCount = 0
+    if (hasInvestment) {
+      try {
+        const holdingsRes = await plaid.investmentsHoldingsGet({ access_token })
+        const { holdings, securities } = holdingsRes.data
+        const secMap: Record<string, any> = {}
+        securities.forEach((s: any) => { secMap[s.security_id] = s })
+
+        const holdingRows = holdings.map((h: any) => {
+          const sec = secMap[h.security_id] || {}
+          return {
+            user_id: user.id,
+            connected_account_id: connectedAccount.id,
+            plaid_account_id: h.account_id,
+            security_id: h.security_id,
+            ticker_symbol: sec.ticker_symbol || null,
+            security_name: sec.name || sec.ticker_symbol || 'Unknown',
+            security_type: sec.type || 'equity',
+            quantity: h.quantity,
+            institution_price: h.institution_price,
+            institution_value: h.institution_value,
+            cost_basis: h.cost_basis ?? null,
+            last_updated: new Date().toISOString(),
+          }
+        })
+
+        if (holdingRows.length > 0) {
+          await supabase.from('account_holdings').insert(holdingRows)
+          holdingCount = holdingRows.length
+        }
+      } catch (e) {
+        // Investment product may not be available for this institution
+        console.log('Could not fetch holdings (investment product not available):', e)
+      }
+    }
 
     return NextResponse.json({
       success: true,
       institution: institutionName,
-      accounts: balanceRows.map(b => ({
-        name: b.account_name,
-        type: b.account_type,
-        balance: b.current_balance,
-      })),
+      accounts: balanceRows.map((b: any) => ({ name: b.account_name, type: b.account_type, balance: b.current_balance })),
+      holdings: holdingCount,
     })
   } catch (err: any) {
     console.error('Plaid exchange error:', err?.response?.data || err)
@@ -87,7 +119,7 @@ export async function POST(req: Request) {
 }
 
 function inferCategory(accounts: any[]): string {
-  const types = accounts.map(a => a.type)
+  const types = accounts.map((a: any) => a.type)
   if (types.includes('investment')) return 'investment'
   if (types.includes('credit') && !types.includes('depository')) return 'credit'
   if (types.includes('depository')) return 'banking'

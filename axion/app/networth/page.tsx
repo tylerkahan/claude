@@ -53,6 +53,7 @@ export default function NetWorthPage() {
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([])
   const [accountBalances, setAccountBalances] = useState<any[]>([])
   const [entities, setEntities] = useState<any[]>([])
+  const [holdings, setHoldings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
@@ -64,16 +65,18 @@ export default function NetWorthPage() {
 
   const load = useCallback(async (userId: string) => {
     const supabase = createClient()
-    const [{ data: a }, { data: c }, { data: b }, { data: e }] = await Promise.all([
+    const [{ data: a }, { data: c }, { data: b }, { data: e }, { data: h }] = await Promise.all([
       supabase.from('assets').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('connected_accounts').select('*').eq('user_id', userId).order('created_at'),
       supabase.from('account_balances').select('*').eq('user_id', userId),
       supabase.from('entities').select('*').eq('user_id', userId),
+      supabase.from('account_holdings').select('*').eq('user_id', userId),
     ])
     setAssets(a ?? [])
     setConnectedAccounts(c ?? [])
     setAccountBalances(b ?? [])
     setEntities(e ?? [])
+    setHoldings(h ?? [])
   }, [])
 
   useEffect(() => {
@@ -121,12 +124,16 @@ export default function NetWorthPage() {
     } else {
       if (form.entity_name) meta.entity_name = form.entity_name
     }
-    await supabase.from('assets').insert({
+    const base = {
       user_id: user.id, name: form.name, category: form.category,
       value: parseFloat(form.value) || 0, institution: form.institution,
       mortgage: form.category === 'Real Estate' ? (parseFloat(form.mortgage) || 0) : 0,
-      metadata: meta,
-    })
+    }
+    const { error: insErr } = await supabase.from('assets').insert({ ...base, metadata: meta })
+    if (insErr) {
+      // metadata column may not exist yet — retry without it
+      await supabase.from('assets').insert(base)
+    }
     setForm(EMPTY_FORM)
     setShowForm(false)
     await load(user.id)
@@ -161,8 +168,13 @@ export default function NetWorthPage() {
   const yoyPct = 12.5
   const todayChange = netWorth > 0 ? Math.round(netWorth * 0.0031) : 0
 
-  // Illiquid
-  const illiquidVal = assets.filter(a => ['Real Estate','Business','Life Insurance','Private Equity'].includes(a.category)).reduce((s, a) => s + (a.value || 0), 0)
+  // Illiquid = manual illiquid assets + connected RE accounts
+  const illiquidManual = assets.filter(a => ['Real Estate','Business','Life Insurance','Private Equity'].includes(a.category)).reduce((s, a) => s + (a.value || 0), 0)
+  const illiquidConnected = accountBalances.filter(b => {
+    const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+    return conn?.category === 'real_estate'
+  }).reduce((s, b) => s + (b.current_balance || 0), 0)
+  const illiquidVal = illiquidManual + illiquidConnected
   const illiquidPct = grandTotal > 0 ? Math.round((illiquidVal / grandTotal) * 100) : 0
 
   // Asset groups
@@ -235,13 +247,8 @@ export default function NetWorthPage() {
   return (
     <div style={{display:'flex',minHeight:'100vh',background:'#03040d',fontFamily:'Inter,sans-serif'}}>
       <style>{`
-        @keyframes axion-flicker {
-          0%,89%,100%{opacity:1;box-shadow:0 0 8px #00cc66,0 0 18px rgba(0,204,102,0.35)}
-          92%{opacity:0.15;box-shadow:0 0 2px #00cc66}
-          94%{opacity:0.9;box-shadow:0 0 8px #00cc66}
-          96%{opacity:0.25;box-shadow:0 0 2px #00cc66}
-        }
-        .axion-dot{width:8px;height:8px;border-radius:50%;background:#00cc66;display:inline-block;animation:axion-flicker 3s ease-in-out infinite}
+        @keyframes axion-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .axion-dot{width:5px;height:5px;border-radius:50%;background:#00cc66;box-shadow:0 0 6px #00cc66;display:inline-block;animation:axion-pulse 1.5s infinite}
       `}</style>
 
       <Sidebar email={user?.email} />
@@ -265,7 +272,7 @@ export default function NetWorthPage() {
             <div>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'6px'}}>LIVE NET WORTH</div>
               <div style={{display:'flex',alignItems:'baseline',gap:'12px',flexWrap:'wrap'}}>
-                <div style={{fontSize:'42px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff'}}>{hasAssets ? fmtFull(netWorth) : '$0'}</div>
+                <div style={{fontSize:'38px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',lineHeight:1}}>{hasAssets ? fmtFull(netWorth) : '$0'}</div>
                 {todayChange > 0 && <span style={{fontSize:'15px',color:'#00cc66',fontWeight:600}}>↑ +{fmtFull(todayChange)} today</span>}
                 {hasAssets && (
                   <span style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'12px',fontWeight:700,padding:'3px 10px',borderRadius:'100px',background:'rgba(0,204,102,0.1)',border:'1px solid rgba(0,204,102,0.2)',color:'#00cc66'}}>
@@ -285,22 +292,22 @@ export default function NetWorthPage() {
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px',marginBottom:'20px'}}>
             <div style={card}>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'10px'}}>Total Assets</div>
-              <div style={{fontSize:'26px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',marginBottom:'4px'}}>{fmt(grandTotal)}</div>
-              <div style={{fontSize:'11px',color:'#00cc66',fontWeight:600}}>↑ Gross · all accounts</div>
+              <div style={{fontSize:'28px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',marginBottom:'4px'}}>{fmt(grandTotal)}</div>
+              <div style={{fontSize:'12px',color:'#00cc66',fontWeight:600}}>↑ +{yoyPct}% YoY</div>
             </div>
             <div style={card}>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'10px'}}>Total Liabilities</div>
-              <div style={{fontSize:'26px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:totalLiabilities>0?'#ff6060':'#6b7ab8',marginBottom:'4px'}}>{totalLiabilities>0?fmt(totalLiabilities):'$0'}</div>
+              <div style={{fontSize:'28px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:totalLiabilities>0?'#ff6060':'#6b7ab8',marginBottom:'4px'}}>{totalLiabilities>0?fmt(totalLiabilities):'$0'}</div>
               <div style={{fontSize:'11px',color:'#6b7ab8'}}>{[totalMortgages>0&&'Mortgage',totalCreditCards>0&&'Credit cards'].filter(Boolean).join(' · ')||'Mortgage + credit cards'}</div>
             </div>
             <div style={card}>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'10px'}}>YoY Growth</div>
-              <div style={{fontSize:'26px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#00cc66',marginBottom:'4px'}}>{netWorth>0?`+${fmt(yoyGain)}`:'—'}</div>
+              <div style={{fontSize:'28px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#00cc66',marginBottom:'4px'}}>{netWorth>0?`+${fmt(yoyGain)}`:'—'}</div>
               <div style={{fontSize:'11px',color:'#00cc66',fontWeight:600}}>{netWorth>0?`↑ +${yoyPct}% since last year`:'Add assets to track'}</div>
             </div>
             <div style={card}>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'10px'}}>Illiquid %</div>
-              <div style={{fontSize:'26px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',marginBottom:'4px'}}>{illiquidPct}%</div>
+              <div style={{fontSize:'28px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',marginBottom:'4px'}}>{illiquidPct}%</div>
               <div style={{fontSize:'11px',color:'#6b7ab8'}}>RE + PE · {fmt(illiquidVal)}</div>
             </div>
           </div>
@@ -535,20 +542,43 @@ export default function NetWorthPage() {
                     </div>
                   )
                 })}
-                {connInvestments.map(conn =>
-                  accountBalances.filter(b=>b.connected_account_id===conn.id).map(b => (
-                    <div key={b.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',padding:'11px 0',borderBottom:'1px solid rgba(0,100,255,0.06)',alignItems:'center'}}>
+                {connInvestments.map(conn => {
+                  const connHoldings = holdings.filter(h => h.connected_account_id === conn.id)
+                  if (connHoldings.length > 0) {
+                    // Show individual holdings from Plaid
+                    return connHoldings.map((h: any) => {
+                      const gain = h.cost_basis != null ? h.institution_value - h.cost_basis : null
+                      const gainPct = gain != null && h.cost_basis > 0 ? (gain / h.cost_basis * 100) : null
+                      return (
+                        <div key={h.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',padding:'10px 0',borderBottom:'1px solid rgba(0,100,255,0.06)',alignItems:'center'}}>
+                          <div>
+                            <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{h.security_name}</div>
+                            <div style={{fontSize:'11px',color:'#6b7ab8'}}>{h.ticker_symbol||''}{h.ticker_symbol?' · ':''}{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
+                          </div>
+                          <div style={{textAlign:'right',fontSize:'12px',color:'#6b7ab8'}}>{h.quantity % 1 === 0 ? h.quantity.toLocaleString() : h.quantity.toFixed(4)}</div>
+                          <div style={{textAlign:'right',fontSize:'12px',color:'#e8eaf6'}}>${h.institution_price?.toFixed(2)}</div>
+                          <div style={{textAlign:'right',fontSize:'13px',fontWeight:600,color:'#fff'}}>{fmtFull(h.institution_value||0)}</div>
+                          <div style={{textAlign:'right',fontSize:'12px',fontWeight:600,color:gain==null?'#6b7ab8':gain>=0?'#00cc66':'#ff6060'}}>
+                            {gain!=null?<>{gain>=0?'+':''}{fmtFull(gain)}<br/><span style={{fontSize:'10px'}}>{fmtPct(gainPct!)}</span></>:'—'}
+                          </div>
+                        </div>
+                      )
+                    })
+                  }
+                  // Fallback: account-level balance if no holdings
+                  return accountBalances.filter(b=>b.connected_account_id===conn.id).map((b: any) => (
+                    <div key={b.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',padding:'10px 0',borderBottom:'1px solid rgba(0,100,255,0.06)',alignItems:'center'}}>
                       <div>
                         <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span></div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span> · <span style={{color:'#ffaa00'}}>Connect to see holdings</span></div>
                       </div>
                       <div style={{textAlign:'right',fontSize:'12px',color:'#6b7ab8'}}>—</div>
-                      <div style={{textAlign:'right',fontSize:'12px',color:'#6b7ab8'}}>{b.account_type||'—'}</div>
+                      <div style={{textAlign:'right',fontSize:'12px',color:'#6b7ab8'}}>—</div>
                       <div style={{textAlign:'right',fontSize:'13px',fontWeight:600,color:'#fff'}}>{fmtFull(b.current_balance||0)}</div>
                       <div style={{textAlign:'right',fontSize:'12px',color:'#6b7ab8'}}>—</div>
                     </div>
                   ))
-                )}
+                })}
               </div>
             </>
           )}
@@ -667,9 +697,11 @@ export default function NetWorthPage() {
           )}
 
           {/* ── Liabilities ── */}
-          {(totalLiabilities > 0) && (
+          {(true) && (
             <>
-              <div style={{fontSize:'11px',fontWeight:700,color:'#ff6060',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Liabilities · {fmt(totalLiabilities)}</div>
+              <div style={{fontSize:'11px',fontWeight:700,color:'#ff6060',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>
+                Liabilities{totalLiabilities > 0 ? ` · -${fmt(totalLiabilities)}` : ''}
+              </div>
               <div style={{...card,borderColor:'rgba(255,60,60,0.2)',marginBottom:'20px'}}>
                 {/* Mortgages */}
                 {realEstate.filter(a=>a.mortgage>0).map(a => {
@@ -722,6 +754,14 @@ export default function NetWorthPage() {
                     </div>
                   )
                 })}
+                {totalLiabilities === 0 && (
+                  <div style={{textAlign:'center',padding:'18px 0',color:'#3d4a7a',fontSize:'13px'}}>
+                    No liabilities tracked.{' '}
+                    <button onClick={()=>{setForm({...EMPTY_FORM,category:'Real Estate'});setShowForm(true)}} style={{background:'none',border:'none',color:'#ff8080',cursor:'pointer',fontSize:'13px',textDecoration:'underline'}}>
+                      Add a mortgage →
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

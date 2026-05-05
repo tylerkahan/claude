@@ -61,6 +61,42 @@ export async function POST() {
             }, { onConflict: 'connected_account_id,plaid_account_id' })
         }
 
+        // Refresh investment holdings if this is an investment account
+        if (conn.category === 'investment') {
+          try {
+            const holdingsRes = await plaid.investmentsHoldingsGet({ access_token: conn.plaid_access_token })
+            const { holdings, securities } = holdingsRes.data
+            const secMap: Record<string, any> = {}
+            securities.forEach((s: any) => { secMap[s.security_id] = s })
+
+            // Delete old holdings for this connection and re-insert
+            await supabase.from('account_holdings').delete().eq('connected_account_id', conn.id)
+
+            const holdingRows = holdings.map((h: any) => {
+              const sec = secMap[h.security_id] || {}
+              return {
+                user_id: user.id,
+                connected_account_id: conn.id,
+                plaid_account_id: h.account_id,
+                security_id: h.security_id,
+                ticker_symbol: sec.ticker_symbol || null,
+                security_name: sec.name || sec.ticker_symbol || 'Unknown',
+                security_type: sec.type || 'equity',
+                quantity: h.quantity,
+                institution_price: h.institution_price,
+                institution_value: h.institution_value,
+                cost_basis: h.cost_basis ?? null,
+                last_updated: new Date().toISOString(),
+              }
+            })
+            if (holdingRows.length > 0) {
+              await supabase.from('account_holdings').insert(holdingRows)
+            }
+          } catch (e) {
+            console.log(`Holdings sync skipped for ${conn.institution_name}:`, e)
+          }
+        }
+
         await supabase.from('connected_accounts')
           .update({ last_synced_at: new Date().toISOString() })
           .eq('id', conn.id)
