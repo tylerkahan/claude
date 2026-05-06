@@ -238,14 +238,16 @@ export default function NetWorthPage() {
   })
   donutCss = donutCss.slice(0,-2)
 
-  // Entity breakdown from asset metadata
-  const entityAlloc: Record<string,number> = {}
+  // Entity breakdown — full (includes Personal bucket for untagged assets + all connected account balances)
+  const entityAllocFull: Record<string,number> = { 'Personal': 0 }
   assets.forEach(a => {
-    const m = a.metadata || {}
-    const ename = m.entity_name
-    if (ename) entityAlloc[ename] = (entityAlloc[ename]||0)+(a.value||0)
+    const ename = (a.metadata?.entity_name) || 'Personal'
+    entityAllocFull[ename] = (entityAllocFull[ename]||0) + (a.value||0)
   })
-  const entityEntries = Object.entries(entityAlloc).sort(([,a],[,b])=>b-a)
+  accountBalances.filter(b => !isCreditBalance(b)).forEach(b => {
+    entityAllocFull['Personal'] = (entityAllocFull['Personal']||0) + (b.current_balance||0)
+  })
+  const entityAllocEntries = Object.entries(entityAllocFull).sort(([ka],[kb]) => ka === 'Personal' ? 1 : kb === 'Personal' ? -1 : 0).filter(([,v]) => v > 0)
   const entityColors = ['#6644ff','#00cc66','#f7931a','#0099ff','#ff6688']
 
   // Entity ownership tree
@@ -414,46 +416,26 @@ export default function NetWorthPage() {
               ) : (
                 <div style={{textAlign:'center',padding:'20px 0',color:'#3d4a7a',fontSize:'13px'}}>No assets yet</div>
               )}
-              {/* By Entity */}
-              {entityEntries.length > 0 && (
-                <div style={{borderTop:'1px solid rgba(0,100,255,0.1)',paddingTop:'12px'}}>
-                  <div style={{fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'8px'}}>By Entity</div>
-                  {entityEntries.map(([ename,val],i) => {
-                    const color = entityColors[i%entityColors.length]
-                    const pct = grandTotal>0?(val/grandTotal)*100:0
-                    return (
-                      <div key={ename} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
-                        <div style={{width:'8px',height:'8px',borderRadius:'2px',background:`${color}bb`,flexShrink:0}}/>
-                        <div style={{fontSize:'12px',color:'#6b7ab8',width:'110px',flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ename}</div>
-                        <div style={{flex:1,height:'5px',background:'rgba(255,255,255,0.05)',borderRadius:'3px',overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${color}cc,${color}66)`,borderRadius:'3px'}}/>
-                        </div>
-                        <div style={{fontSize:'11px',color:'#e8eaf6',fontWeight:600,minWidth:'50px',textAlign:'right'}}>{fmt(val)}</div>
+              {/* By Entity — always shown */}
+              <div style={{borderTop:'1px solid rgba(0,100,255,0.1)',paddingTop:'12px'}}>
+                <div style={{fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'8px'}}>By Entity</div>
+                {entityAllocEntries.length === 0 ? (
+                  <div style={{fontSize:'12px',color:'#3d4a7a',padding:'6px 0'}}>No entities set up yet. Add assets with an entity to see the breakdown.</div>
+                ) : entityAllocEntries.map(([ename,val],i) => {
+                  const color = ename === 'Personal' ? '#3d4a7a' : entityColors[i%entityColors.length]
+                  const pct = grandTotal>0?(val/grandTotal)*100:0
+                  return (
+                    <div key={ename} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
+                      <div style={{width:'8px',height:'8px',borderRadius:'2px',background:`${color}bb`,flexShrink:0}}/>
+                      <div style={{fontSize:'12px',color:'#6b7ab8',width:'110px',flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ename}</div>
+                      <div style={{flex:1,height:'5px',background:'rgba(255,255,255,0.05)',borderRadius:'3px',overflow:'hidden'}}>
+                        <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${color}cc,${color}66)`,borderRadius:'3px'}}/>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-              {/* By Value bars (fallback when no entities) */}
-              {entityEntries.length === 0 && allocEntries.length > 0 && (
-                <div style={{borderTop:'1px solid rgba(0,100,255,0.1)',paddingTop:'12px'}}>
-                  <div style={{fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'8px'}}>By Value</div>
-                  {allocEntries.slice(0,4).map(([cat,val],i) => {
-                    const color = CAT_COLORS[cat]||ALLOC_COLORS[i%ALLOC_COLORS.length]
-                    const pct = grandTotal>0?(val/grandTotal)*100:0
-                    return (
-                      <div key={cat} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
-                        <div style={{width:'8px',height:'8px',borderRadius:'2px',background:color,flexShrink:0}}/>
-                        <div style={{fontSize:'12px',color:'#6b7ab8',width:'110px',flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cat}</div>
-                        <div style={{flex:1,height:'5px',background:'rgba(255,255,255,0.05)',borderRadius:'3px',overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${color}cc,${color}66)`,borderRadius:'3px'}}/>
-                        </div>
-                        <div style={{fontSize:'11px',color:'#e8eaf6',fontWeight:600,minWidth:'50px',textAlign:'right'}}>{fmt(val)}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      <div style={{fontSize:'11px',color:'#e8eaf6',fontWeight:600,minWidth:'50px',textAlign:'right'}}>{fmt(val)}</div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
@@ -561,7 +543,7 @@ export default function NetWorthPage() {
                   </div>
                 ) : (
                 <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',paddingBottom:'10px',borderBottom:'1px solid rgba(0,100,255,0.1)',fontSize:'10px',fontWeight:700,color:'#3d4a7a',letterSpacing:'.1em',textTransform:'uppercase'}}>
-                  <span>Holding</span><span style={{textAlign:'right'}}>Shares</span><span style={{textAlign:'right'}}>Ticker</span><span style={{textAlign:'right'}}>Value</span><span style={{textAlign:'right'}}>Gain / Loss</span>
+                  <span>Holding</span><span style={{textAlign:'right'}}>Shares</span><span style={{textAlign:'right'}}>Price</span><span style={{textAlign:'right'}}>Value</span><span style={{textAlign:'right'}}>Gain / Loss</span>
                 </div>
                 )}
                 {investments.map(a => {
@@ -684,7 +666,7 @@ export default function NetWorthPage() {
               <div style={card}>
                 {banking.length===0&&connBanking.length===0 ? (
                   <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>No bank accounts tracked yet</div>
+                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>Checking, savings &amp; money market accounts appear here automatically when added.</div>
                     <div style={{display:'flex',gap:'8px'}}>
                       <button onClick={()=>{setForm({...EMPTY_FORM,category:'Bank Account'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Manually</button>
                       <Link href="/integrations" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'8px',color:'#00cc66',fontSize:'12px',textDecoration:'none'}}>Connect Bank →</Link>
@@ -1006,8 +988,11 @@ export default function NetWorthPage() {
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',alignItems:'center'}}>
                     <div>
-                      {lbl('Trust / Entity Name')}
-                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
+                      {lbl('Owned By')}
+                      <select value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} style={inp}>
+                        <option value="">Personal (no entity)</option>
+                        {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
+                      </select>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:'8px',paddingTop:'20px'}}>
                       <input type="checkbox" id="hit" checked={form.held_in_trust} onChange={e=>sf({held_in_trust:e.target.checked})} style={{width:'16px',height:'16px',accentColor:'#6644ff'}}/>
@@ -1048,8 +1033,11 @@ export default function NetWorthPage() {
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','if held in entity')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family LLC" style={inp}/>
+                    {lbl('Owned By')}
+                    <select value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} style={inp}>
+                      <option value="">Personal (no entity)</option>
+                      {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
+                    </select>
                   </div>
                 </>)}
 
@@ -1076,8 +1064,11 @@ export default function NetWorthPage() {
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','if held in entity')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
+                    {lbl('Owned By')}
+                    <select value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} style={inp}>
+                      <option value="">Personal (no entity)</option>
+                      {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
+                    </select>
                   </div>
                 </>)}
 
@@ -1125,8 +1116,11 @@ export default function NetWorthPage() {
                       <input value={form.institution} onChange={e=>sf({institution:e.target.value})} placeholder="Sequoia Capital" style={inp}/>
                     </div>
                     <div>
-                      {lbl('Holding Entity / LP')}
-                      <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Capital LP" style={inp}/>
+                      {lbl('Owned By')}
+                      <select value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} style={inp}>
+                        <option value="">Personal (no entity)</option>
+                        {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
+                      </select>
                     </div>
                   </div>
                 </>)}
@@ -1146,8 +1140,11 @@ export default function NetWorthPage() {
                     </div>
                   </div>
                   <div>
-                    {lbl('Entity / Trust','if held in entity')}
-                    <input value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} placeholder="Smith Family Trust" style={inp}/>
+                    {lbl('Owned By')}
+                    <select value={form.entity_name} onChange={e=>sf({entity_name:e.target.value})} style={inp}>
+                      <option value="">Personal (no entity)</option>
+                      {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
+                    </select>
                   </div>
                 </>)}
 
