@@ -467,8 +467,8 @@ export default function NetWorthPage() {
                           <div style={{fontSize:'12px',color:'#6b7ab8'}}>{m.address||a.institution||'Manual entry'}</div>
                         </div>
                         <div style={{display:'flex',gap:'6px',alignItems:'center',flexShrink:0}}>
-                          <span style={{fontSize:'10px',fontWeight:700,padding:'3px 8px',background:'rgba(0,204,102,0.08)',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'5px',color:'#00cc66',display:'flex',alignItems:'center',gap:'4px'}}>
-                            <span className="axion-dot" style={{width:'5px',height:'5px',background:'#00cc66',borderRadius:'50%',display:'inline-block'}}/>AVM Live
+                          <span style={{fontSize:'10px',fontWeight:700,padding:'3px 8px',background:'rgba(61,74,122,0.2)',border:'1px solid rgba(61,74,122,0.35)',borderRadius:'5px',color:'#6b7ab8'}}>
+                            Manual AVM
                           </span>
                           <button onClick={()=>deleteAsset(a.id)} style={{background:'none',border:'none',color:'#3d4a7a',cursor:'pointer',fontSize:'16px',lineHeight:1}}>×</button>
                         </div>
