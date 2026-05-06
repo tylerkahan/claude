@@ -18,7 +18,7 @@ const ALLOC_COLORS = ['#0055ff','#0099ff','#6644ff','#00cc66','#f7931a','#ff6688
 const MANUAL_CATEGORIES = ['Real Estate','Investment Account','Private Equity','Bank Account','Crypto','Business','Life Insurance','Other']
 const PE_TYPES = ['Venture','Growth','Buyout','Biotech','Real Estate','Infrastructure','Other']
 
-const fmt = (n: number) => { const r = Math.round(n); return r >= 1_000_000 ? `$${(r/1_000_000).toFixed(1)}M` : r >= 1_000 ? `$${(r/1_000).toFixed(0)}K` : `$${r.toLocaleString()}` }
+const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`
 const fmtFull = (n: number) => `$${Math.round(n).toLocaleString()}`
 const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`
 
@@ -290,16 +290,16 @@ export default function NetWorthPage() {
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minHeight:'100vh'}}>
 
         {/* Top bar */}
-        <div style={{height:'58px',flexShrink:0,background:'rgba(6,10,32,0.9)',borderBottom:'1px solid rgba(0,100,255,0.12)',display:'flex',alignItems:'center',padding:'0 28px',gap:'12px',backdropFilter:'blur(20px)'}}>
+        <div className="ax-topbar" style={{height:'58px',flexShrink:0,background:'rgba(6,10,32,0.9)',borderBottom:'1px solid rgba(0,100,255,0.12)',display:'flex',alignItems:'center',gap:'12px',backdropFilter:'blur(20px)'}}>
           <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:'16px',fontWeight:700,color:'#fff'}}>Net Worth</span>
           <span style={{fontSize:'12px',color:'#6b7ab8'}}>Live · synced now</span>
           <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
             <button onClick={()=>{setForm(EMPTY_FORM);setShowForm(true)}} style={{padding:'7px 16px',background:'linear-gradient(135deg,#0055ff,#00aaff)',border:'none',borderRadius:'8px',color:'#fff',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>+ Add Asset</button>
-            <Link href="/integrations" style={{padding:'7px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.25)',borderRadius:'8px',color:'#6b7ab8',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>Connect Accounts →</Link>
+            <Link href="/integrations" className="ax-hide-mobile" style={{padding:'7px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.25)',borderRadius:'8px',color:'#6b7ab8',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>Connect Accounts →</Link>
           </div>
         </div>
 
-        <div style={{flex:1,overflowY:'auto',padding:'24px 28px'}}>
+        <div className="ax-page-pad" style={{flex:1,overflowY:'auto'}}>
           <AIPageInsight page="networth" />
 
           {/* ── Header ── */}
@@ -324,7 +324,7 @@ export default function NetWorthPage() {
           </div>
 
           {/* ── Stat cards ── */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px',marginBottom:'20px'}}>
+          <div className="ax-stats-grid">
             <div style={card}>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'10px'}}>Total Assets</div>
               <div style={{fontSize:'28px',fontWeight:800,fontFamily:"'Space Grotesk',sans-serif",color:'#fff',marginBottom:'4px'}}>{fmt(grandTotal)}</div>
@@ -348,7 +348,7 @@ export default function NetWorthPage() {
           </div>
 
           {/* ── Chart + Allocation ── */}
-          <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:'16px',marginBottom:'20px'}}>
+          <div className="ax-split-grid">
             <div style={card}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
                 <span style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',textTransform:'uppercase',letterSpacing:'.1em'}}>12-Month Net Worth</span>
@@ -678,7 +678,7 @@ export default function NetWorthPage() {
           </>
 
           {/* ── Cash & Banking + Crypto ── */}
-          <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:'16px',marginBottom:'20px'}}>
+          <div className="ax-two-grid">
             <div>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Cash &amp; Banking{cashTotal>0?` · ${fmt(cashTotal)}`:''}</div>
               <div style={card}>

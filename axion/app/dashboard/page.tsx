@@ -72,25 +72,25 @@ export default async function DashboardPage() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: '100vh' }}>
         {/* Top bar */}
-        <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '16px', backdropFilter: 'blur(20px)' }}>
+        <div className="ax-topbar" style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', gap: '16px', backdropFilter: 'blur(20px)' }}>
           <div>
             <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>
               {profile?.full_name ? `${profile.full_name.split(' ')[0]}'s Estate` : 'Dashboard'}
             </span>
-            <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '8px' }}>
+            <span className="ax-hide-mobile" style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '8px' }}>
               {criticalRecs.length > 0 ? `⚠ ${criticalRecs.length} critical item${criticalRecs.length > 1 ? 's' : ''} need attention` : 'Estate overview'}
             </span>
           </div>
           <div style={{ flex: 1 }} />
-          <Link href="/vault" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', color: '#6b7ab8' }}>↑ Upload Document</Link>
-          <Link href="/compliance" style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', background: 'linear-gradient(135deg,#0055ff,#00aaff)', color: '#fff' }}>View Checklist</Link>
+          <Link href="/vault" className="ax-hide-mobile" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', color: '#6b7ab8' }}>↑ Upload Document</Link>
+          <Link href="/compliance" style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', background: 'linear-gradient(135deg,#0055ff,#00aaff)', color: '#fff' }}>Checklist</Link>
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div className="ax-page-pad" style={{ flex: 1, overflowY: 'auto' }}>
 
           {/* Row 1: 3 stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '20px' }}>
+          <div className="ax-three-grid">
             <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.16)', borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7ab8', textTransform: 'uppercase', letterSpacing: '.1em' }}>Total Estate Value</span>
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* AI Estate Score — spans full width */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div className="ax-two-grid">
             <AIEstateScore />
           </div>
 
