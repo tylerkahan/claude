@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
 import { buildRecommendations } from '@/lib/recommendations'
+import AIEstateScore from '@/components/AIEstateScore'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -124,6 +125,11 @@ export default async function DashboardPage() {
                 <div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? '#00cc66' : score >= 50 ? '#ffaa00' : '#ff6688', borderRadius: '4px', transition: 'width .5s' }} />
               </div>
             </div>
+          </div>
+
+          {/* AI Estate Score — spans full width */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <AIEstateScore />
           </div>
 
           {/* Row 2: Asset allocation + Action items */}
