@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 const STALE_HOURS = 24
 
@@ -24,14 +25,18 @@ export default function AIEstateScore() {
   const [data, setData] = useState<any>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const analyzingRef = useRef(false)
 
   const runAnalysis = useCallback(async () => {
+    if (analyzingRef.current) return
+    analyzingRef.current = true
     setAnalyzing(true)
     try {
       const res = await fetch('/api/ai/analyze', { method: 'POST' })
       const json = await res.json()
       setData(json)
     } catch {}
+    analyzingRef.current = false
     setAnalyzing(false)
     setLoaded(true)
   }, [])
@@ -48,6 +53,19 @@ export default function AIEstateScore() {
       })
       .catch(() => runAnalysis())
   }, [runAnalysis])
+
+  // Live subscription — score updates the moment ai_insights row changes
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('ai-score-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_insights' }, payload => {
+        const updated = payload.new as any
+        if (updated?.estate_score != null) setData(updated)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const card: React.CSSProperties = {
     background: 'rgba(8,14,40,0.7)',

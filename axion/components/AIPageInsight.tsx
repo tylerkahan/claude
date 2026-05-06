@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 const STALE_HOURS = 24
 
@@ -28,36 +29,54 @@ export default function AIPageInsight({ page }: { page: string }) {
   const [pageInsights, setPageInsights] = useState<any[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const analyzingRef = useRef(false)
+
+  const applyInsights = useCallback((insights: any) => {
+    const all: any[] = insights?.insights ?? []
+    setPageInsights(all.filter((i: any) => !i.page || i.page === page))
+    setLoaded(true)
+  }, [page])
 
   const runAnalysis = useCallback(async () => {
+    if (analyzingRef.current) return
+    analyzingRef.current = true
     setAnalyzing(true)
     try {
       const res = await fetch('/api/ai/analyze', { method: 'POST' })
       const data = await res.json()
-      const all: any[] = data.insights ?? []
-      setPageInsights(all.filter((i: any) => !i.page || i.page === page))
+      applyInsights(data)
     } catch {}
+    analyzingRef.current = false
     setAnalyzing(false)
-    setLoaded(true)
-  }, [page])
+  }, [applyInsights])
+
+  const fetchInsights = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ai/insights')
+      const { insights } = await res.json()
+      if (!insights) { runAnalysis(); return }
+      const ageHours = (Date.now() - new Date(insights.generated_at).getTime()) / 3_600_000
+      applyInsights(insights)
+      if (ageHours > STALE_HOURS) runAnalysis()
+    } catch { runAnalysis() }
+  }, [applyInsights, runAnalysis])
 
   useEffect(() => {
-    fetch('/api/ai/insights')
-      .then(r => r.json())
-      .then(({ insights }) => {
-        if (!insights) {
-          runAnalysis()
-          return
-        }
-        const ageHours = (Date.now() - new Date(insights.generated_at).getTime()) / 3_600_000
-        const all: any[] = insights.insights ?? []
-        setPageInsights(all.filter((i: any) => !i.page || i.page === page))
-        setLoaded(true)
-        // Refresh in background if stale
-        if (ageHours > STALE_HOURS) runAnalysis()
+    fetchInsights()
+  }, [fetchInsights])
+
+  // Live subscription — re-render banner the moment ai_insights row updates
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('ai-insights-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_insights' }, payload => {
+        const updated = (payload.new as any)
+        if (updated?.insights) applyInsights(updated)
       })
-      .catch(() => { runAnalysis() })
-  }, [page, runAnalysis])
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [applyInsights])
 
   const question = encodeURIComponent(PAGE_AI_QUESTION[page] || 'What should I focus on for my estate plan?')
   const aiHref = `/ai?q=${question}`
