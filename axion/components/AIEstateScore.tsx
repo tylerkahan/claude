@@ -61,7 +61,13 @@ export default function AIEstateScore() {
       .channel('ai-score-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_insights' }, payload => {
         const updated = payload.new as any
-        if (updated?.estate_score != null) setData(updated)
+        if (updated?.estate_score != null) {
+          // insights may arrive as a string depending on Supabase version
+          if (typeof updated.insights === 'string') {
+            try { updated.insights = JSON.parse(updated.insights) } catch {}
+          }
+          setData(updated)
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }

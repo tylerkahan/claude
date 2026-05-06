@@ -33,7 +33,20 @@ export default function AIPageInsight({ page }: { page: string }) {
 
   const applyInsights = useCallback((insights: any) => {
     const all: any[] = insights?.insights ?? []
-    setPageInsights(all.filter((i: any) => !i.page || i.page === page))
+    // First try exact page match
+    const pageSpecific = all.filter((i: any) => !i.page || i.page === page)
+    if (pageSpecific.length > 0) {
+      setPageInsights(pageSpecific)
+    } else if (all.length > 0) {
+      // Fall back to top 2 highest-severity insights from anywhere
+      const ranked = [...all].sort((a, b) => {
+        const order: Record<string, number> = { critical: 0, high: 1, medium: 2 }
+        return (order[a.severity] ?? 3) - (order[b.severity] ?? 3)
+      })
+      setPageInsights(ranked.slice(0, 2))
+    } else {
+      setPageInsights([])
+    }
     setLoaded(true)
   }, [page])
 
@@ -71,8 +84,8 @@ export default function AIPageInsight({ page }: { page: string }) {
     const channel = supabase
       .channel('ai-insights-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_insights' }, payload => {
-        const updated = (payload.new as any)
-        if (updated?.insights) applyInsights(updated)
+        const updated = payload.new as any
+        if (updated?.insights) applyInsights({ insights: updated.insights })
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
