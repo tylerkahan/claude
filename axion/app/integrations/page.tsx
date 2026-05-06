@@ -55,11 +55,16 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true)
   const [connections, setConnections] = useState<ConnectedAccount[]>([])
   const [balances, setBalances] = useState<AccountBalance[]>([])
+  const [entities, setEntities] = useState<any[]>([])
   const [syncing, setSyncing] = useState(false)
   const [activeModal, setActiveModal] = useState<null | 'plaid' | 'crypto' | 'property' | 'coinbase_setup'>(null)
   const [plaidReady, setPlaidReady] = useState(false)
   const [plaidConfigured, setPlaidConfigured] = useState(true)
   const [coinbaseConfigured, setCoinbaseConfigured] = useState(true)
+  // Entity assignment after Plaid connection
+  const [pendingEntityConn, setPendingEntityConn] = useState<{ connected_account_id: string; institution: string } | null>(null)
+  const [pendingEntity, setPendingEntity] = useState('')
+  const [assigningEntity, setAssigningEntity] = useState(false)
 
   // crypto form
   const [cryptoForm, setCryptoForm] = useState({ symbol: 'BTC', amount: '' })
@@ -86,12 +91,14 @@ export default function IntegrationsPage() {
     if (!user) { router.push('/login'); return }
     setUser(user)
 
-    const [{ data: conns }, { data: bals }] = await Promise.all([
+    const [{ data: conns }, { data: bals }, { data: ents }] = await Promise.all([
       supabase.from('connected_accounts').select('*').eq('user_id', user.id).order('created_at'),
       supabase.from('account_balances').select('*').eq('user_id', user.id),
+      supabase.from('entities').select('*').eq('user_id', user.id),
     ])
     setConnections(conns ?? [])
     setBalances(bals ?? [])
+    setEntities(ents ?? [])
     setLoading(false)
   }, [router])
 
@@ -149,6 +156,11 @@ export default function IntegrationsPage() {
           const result = await exchangeRes.json()
           if (result.error) { alert(result.error); return }
           await load()
+          // Prompt entity assignment
+          if (result.connected_account_id) {
+            setPendingEntityConn({ connected_account_id: result.connected_account_id, institution: result.institution || metadata?.institution?.name || 'this account' })
+            setPendingEntity('')
+          }
         },
         onExit: () => {},
       })
@@ -183,6 +195,20 @@ export default function IntegrationsPage() {
       body: JSON.stringify({ account_id: conn.id }),
     })
     await load()
+  }
+
+  // ── Assign entity to connected account ───────────────────
+  async function assignEntity() {
+    if (!pendingEntityConn) return
+    setAssigningEntity(true)
+    const supabase = createClient()
+    await supabase
+      .from('connected_accounts')
+      .update({ entity_name: pendingEntity || null })
+      .eq('id', pendingEntityConn.connected_account_id)
+    await load()
+    setPendingEntityConn(null)
+    setAssigningEntity(false)
   }
 
   // ── Connect Coinbase ─────────────────────────────────────
@@ -548,6 +574,49 @@ export default function IntegrationsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Entity assignment modal — shown after Plaid connection */}
+      {pendingEntityConn && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ background: '#060818', border: '1px solid rgba(102,68,255,0.3)', borderRadius: '20px', padding: '32px', maxWidth: '460px', width: '100%' }}>
+            <div style={{ fontSize: '28px', marginBottom: '12px', textAlign: 'center' }}>🏦</div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '8px', textAlign: 'center' }}>Who owns this account?</h3>
+            <p style={{ fontSize: '13px', color: '#6b7ab8', lineHeight: '1.6', marginBottom: '20px', textAlign: 'center' }}>
+              <strong style={{ color: '#e8eaf6' }}>{pendingEntityConn.institution}</strong> was connected successfully.
+              <br/>Which entity or person holds these accounts?
+            </p>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Owned By</label>
+              <select
+                value={pendingEntity}
+                onChange={e => setPendingEntity(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(102,68,255,0.25)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none', fontFamily: 'Inter,sans-serif' }}
+              >
+                <option value="" style={{ background: '#060818' }}>Personal (my own accounts)</option>
+                {entities.map(e => <option key={e.id} value={e.name} style={{ background: '#060818' }}>{e.name}</option>)}
+              </select>
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7ab8' }}>
+                Don&apos;t see the right entity?{' '}
+                <a href="/entities" style={{ color: '#9966ff', textDecoration: 'none', fontWeight: 600 }}>Add Entity →</a>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setPendingEntityConn(null) }}
+                style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}
+              >
+                Skip
+              </button>
+              <button
+                onClick={assignEntity}
+                disabled={assigningEntity}
+                style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#6644ff,#9966ff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: assigningEntity ? 0.7 : 1 }}
+              >
+                {assigningEntity ? 'Saving...' : 'Confirm →'}
+              </button>
+            </div>
           </div>
         </div>
       )}

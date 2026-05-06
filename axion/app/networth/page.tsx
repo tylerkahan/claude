@@ -17,6 +17,7 @@ const CAT_COLORS: Record<string, string> = {
 const ALLOC_COLORS = ['#0055ff','#0099ff','#6644ff','#00cc66','#f7931a','#ff6688','#6b7ab8']
 const MANUAL_CATEGORIES = ['Real Estate','Investment Account','Private Equity','Bank Account','Crypto','Business','Life Insurance','Other']
 const PE_TYPES = ['Venture','Growth','Buyout','Biotech','Real Estate','Infrastructure','Other']
+const CASH_ACCOUNT_TYPES = ['checking', 'savings', 'money market', 'money_market', 'cd', 'cash management', 'prepaid', 'hsa', 'paypal', 'depository']
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`
 const fmtFull = (n: number) => `$${Math.round(n).toLocaleString()}`
@@ -209,10 +210,17 @@ export default function NetWorthPage() {
     legacyCreditByConn[conn.id].balances.push(b)
   })
 
+  // Cash-type balances from ALL connected accounts (checking, savings, money market, etc.)
+  const isCashAccountType = (b: any) => {
+    const t = (b.account_type || '').toLowerCase()
+    return CASH_ACCOUNT_TYPES.some(cat => t === cat || t.includes(cat))
+  }
+  const cashAccountBalances = accountBalances.filter(b => !isCreditBalance(b) && isCashAccountType(b))
+
   const reTotal = [...realEstate,...connRealEstate].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
-  const invTotal = [...investments,...connInvestments].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
+  const invTotal = [...investments,...connInvestments].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id&&!isCreditBalance(b)&&!isCashAccountType(b)).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
   const peTotal = privateEquity.reduce((s,a) => s+(a.value||0), 0)
-  const cashTotal = [...banking,...connBanking].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id&&!isCreditBalance(b)).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
+  const cashTotal = banking.reduce((s,a) => s+(a.value||0), 0) + cashAccountBalances.reduce((s,b) => s+(b.current_balance||0), 0)
   const cryptoTotal = [...crypto,...connCrypto].reduce((s,item) => item.value ? s+item.value : s+accountBalances.filter(b=>b.connected_account_id===item.id).reduce((ss,b)=>ss+(b.current_balance||0),0), 0)
 
   // Allocation map
@@ -452,42 +460,42 @@ export default function NetWorthPage() {
                   const paidPct = mortgage > 0 && m.purchase_price ? Math.max(0,Math.min(100,Math.round((1-(mortgage/(m.purchase_price*0.8)))*100))) : mortgage > 0 && a.value ? Math.max(0,Math.min(100,Math.round((1-mortgage/a.value)*100))) : null
                   return (
                     <div key={a.id} style={{...card,borderColor:'rgba(0,85,255,0.25)'}}>
-                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'12px'}}>
-                        <div>
-                          <div style={{fontSize:'14px',fontWeight:700,color:'#fff'}}>{a.name}</div>
+                      {/* Header */}
+                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'14px'}}>
+                        <div style={{flex:1,minWidth:0,paddingRight:'10px'}}>
+                          <div style={{fontSize:'15px',fontWeight:700,color:'#fff',marginBottom:'3px'}}>{a.name}</div>
                           <div style={{fontSize:'12px',color:'#6b7ab8'}}>{m.address||a.institution||'Manual entry'}</div>
                         </div>
                         <div style={{display:'flex',gap:'6px',alignItems:'center',flexShrink:0}}>
-                          {m.held_in_trust && <span style={{fontSize:'11px',padding:'2px 8px',background:'rgba(102,68,255,0.1)',border:'1px solid rgba(102,68,255,0.25)',borderRadius:'5px',color:'#9966ff'}}>In Trust ✓</span>}
+                          <span style={{fontSize:'10px',fontWeight:700,padding:'3px 8px',background:'rgba(0,204,102,0.08)',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'5px',color:'#00cc66',display:'flex',alignItems:'center',gap:'4px'}}>
+                            <span className="axion-dot" style={{width:'5px',height:'5px',background:'#00cc66',borderRadius:'50%',display:'inline-block'}}/>AVM Live
+                          </span>
                           <button onClick={()=>deleteAsset(a.id)} style={{background:'none',border:'none',color:'#3d4a7a',cursor:'pointer',fontSize:'16px',lineHeight:1}}>×</button>
                         </div>
                       </div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'12px'}}>
-                        <div>
-                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'3px'}}>AVM Value</div>
-                          <div style={{fontSize:'18px',fontWeight:700,color:'#fff',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(a.value||0)}</div>
+                      {/* 2×2 grid — always all 4 cells */}
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'12px'}}>
+                        <div style={{background:'rgba(0,0,0,0.25)',borderRadius:'8px',padding:'10px 12px'}}>
+                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'4px'}}>AVM Value</div>
+                          <div style={{fontSize:'17px',fontWeight:700,color:'#fff',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(a.value||0)}</div>
                         </div>
-                        {mortgage > 0 && (
-                          <div>
-                            <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'3px'}}>Mortgage Balance</div>
-                            <div style={{fontSize:'18px',fontWeight:700,color:'#ff6060',fontFamily:"'Space Grotesk',sans-serif"}}>-{fmtFull(mortgage)}</div>
-                          </div>
-                        )}
-                        <div>
-                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'3px'}}>Equity</div>
-                          <div style={{fontSize:'18px',fontWeight:700,color:'#00cc66',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(equity)}</div>
+                        <div style={{background:'rgba(0,0,0,0.25)',borderRadius:'8px',padding:'10px 12px'}}>
+                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'4px'}}>Mortgage Balance</div>
+                          <div style={{fontSize:'17px',fontWeight:700,color:mortgage>0?'#ff6060':'#3d4a7a',fontFamily:"'Space Grotesk',sans-serif"}}>{mortgage>0?`-${fmtFull(mortgage)}`:'—'}</div>
                         </div>
-                        {m.purchase_price > 0 && (
-                          <div>
-                            <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'3px'}}>Purchase Price</div>
-                            <div style={{fontSize:'18px',fontWeight:700,color:'#e8eaf6',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(m.purchase_price)}</div>
-                          </div>
-                        )}
+                        <div style={{background:'rgba(0,204,102,0.06)',border:'1px solid rgba(0,204,102,0.1)',borderRadius:'8px',padding:'10px 12px'}}>
+                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'4px'}}>Equity</div>
+                          <div style={{fontSize:'17px',fontWeight:700,color:'#00cc66',fontFamily:"'Space Grotesk',sans-serif"}}>{fmtFull(equity)}</div>
+                        </div>
+                        <div style={{background:'rgba(0,0,0,0.25)',borderRadius:'8px',padding:'10px 12px'}}>
+                          <div style={{fontSize:'10px',color:'#3d4a7a',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'4px'}}>Purchase Price</div>
+                          <div style={{fontSize:'17px',fontWeight:700,color:'#e8eaf6',fontFamily:"'Space Grotesk',sans-serif"}}>{m.purchase_price>0?fmtFull(m.purchase_price):'—'}</div>
+                        </div>
                       </div>
-                      {/* Mortgage details bar */}
+                      {/* Mortgage progress bar */}
                       {mortgage > 0 && paidPct !== null && (
-                        <div style={{marginBottom:'10px'}}>
-                          <div style={{height:'5px',background:'rgba(255,255,255,0.05)',borderRadius:'3px',overflow:'hidden',marginBottom:'5px'}}>
+                        <div style={{marginBottom:'12px'}}>
+                          <div style={{height:'5px',background:'rgba(255,255,255,0.05)',borderRadius:'3px',overflow:'hidden',marginBottom:'4px'}}>
                             <div style={{width:`${paidPct}%`,height:'100%',background:'linear-gradient(90deg,#ff3333,#ff6666)',borderRadius:'3px'}}/>
                           </div>
                           <div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#3d4a7a'}}>
@@ -496,13 +504,18 @@ export default function NetWorthPage() {
                           </div>
                         </div>
                       )}
-                      {/* Gain + entity row */}
-                      {(gain !== null || m.entity_name) && (
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'12px',color:'#6b7ab8',borderTop:'1px solid rgba(0,100,255,0.1)',paddingTop:'10px'}}>
-                          {gain !== null && <span>Unrealized: <span style={{color:gain>=0?'#00cc66':'#ff6060',fontWeight:600}}>{gain>=0?'+':''}{fmtFull(gain)} ({gainPct?.toFixed(1)}%)</span></span>}
-                          {m.entity_name && <span>{m.entity_name}</span>}
+                      {/* Bottom row — unrealized gain + trust badge */}
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',borderTop:'1px solid rgba(0,100,255,0.1)',paddingTop:'10px'}}>
+                        <div style={{fontSize:'12px',color:'#6b7ab8'}}>
+                          {gain !== null
+                            ? <span>Unrealized: <span style={{color:gain>=0?'#00cc66':'#ff6060',fontWeight:600}}>{gain>=0?'+':''}{fmtFull(gain)} ({gainPct?.toFixed(1)}%)</span></span>
+                            : <span style={{color:'#3d4a7a',fontSize:'11px'}}>Add purchase price to track gain</span>
+                          }
                         </div>
-                      )}
+                        {m.held_in_trust && (
+                          <span style={{fontSize:'11px',padding:'3px 9px',background:'rgba(102,68,255,0.1)',border:'1px solid rgba(102,68,255,0.25)',borderRadius:'5px',color:'#9966ff',flexShrink:0}}>✓ Held in Trust</span>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -589,8 +602,8 @@ export default function NetWorthPage() {
                       )
                     })
                   }
-                  // Fallback: account-level balance if no holdings
-                  return accountBalances.filter(b=>b.connected_account_id===conn.id).map((b: any) => (
+                  // Fallback: account-level balance if no holdings (exclude cash-type accounts)
+                  return accountBalances.filter(b=>b.connected_account_id===conn.id&&!isCreditBalance(b)&&!isCashAccountType(b)).map((b: any) => (
                     <div key={b.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:'8px',padding:'10px 0',borderBottom:'1px solid rgba(0,100,255,0.06)',alignItems:'center'}}>
                       <div>
                         <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
@@ -664,9 +677,9 @@ export default function NetWorthPage() {
             <div>
               <div style={{fontSize:'11px',fontWeight:700,color:'#6b7ab8',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px'}}>Cash &amp; Banking{cashTotal>0?` · ${fmt(cashTotal)}`:''}</div>
               <div style={card}>
-                {banking.length===0&&connBanking.length===0 ? (
+                {banking.length===0&&cashAccountBalances.length===0 ? (
                   <div style={{padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>Checking, savings &amp; money market accounts appear here automatically when added.</div>
+                    <div style={{fontSize:'13px',color:'#3d4a7a'}}>Checking, savings &amp; money market accounts appear here automatically when connected.</div>
                     <div style={{display:'flex',gap:'8px'}}>
                       <button onClick={()=>{setForm({...EMPTY_FORM,category:'Bank Account'});setShowForm(true)}} style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,100,255,0.2)',borderRadius:'8px',color:'#6b7ab8',fontSize:'12px',cursor:'pointer'}}>+ Add Manually</button>
                       <Link href="/integrations" style={{padding:'6px 14px',background:'transparent',border:'1px solid rgba(0,204,102,0.2)',borderRadius:'8px',color:'#00cc66',fontSize:'12px',textDecoration:'none'}}>Connect Bank →</Link>
@@ -689,17 +702,22 @@ export default function NetWorthPage() {
                     </div>
                   )
                 })}
-                {connBanking.map(conn =>
-                  accountBalances.filter(b=>b.connected_account_id===conn.id&&!isCreditBalance(b)).map(b => (
+                {cashAccountBalances.map(b => {
+                  const conn = connectedAccounts.find(c => c.id === b.connected_account_id)
+                  return (
                     <div key={b.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(0,100,255,0.08)'}}>
                       <div>
                         <div style={{fontSize:'13px',fontWeight:600,color:'#fff'}}>{b.account_name}</div>
-                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>{conn.institution_name} · <span style={{color:'#00cc66'}}>● Live</span>{b.account_type?` · ${b.account_type}`:''}</div>
+                        <div style={{fontSize:'11px',color:'#6b7ab8'}}>
+                          {conn?.institution_name||'Connected'} · <span style={{color:'#00cc66'}}>● Live</span>
+                          {b.account_type?` · ${b.account_type}`:''}
+                          {conn?.entity_name?` · ${conn.entity_name}`:''}
+                        </div>
                       </div>
                       <div style={{fontSize:'13px',fontWeight:700,color:'#fff'}}>{fmtFull(b.current_balance||0)}</div>
                     </div>
-                  ))
-                )}
+                  )
+                })}
               </div>
             </div>
             <div>
@@ -993,6 +1011,7 @@ export default function NetWorthPage() {
                         <option value="">Personal (no entity)</option>
                         {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
                       </select>
+                      <Link href="/entities" style={{display:'inline-block',marginTop:'5px',fontSize:'11px',color:'#6644ff',textDecoration:'none',opacity:.8}}>+ Add Entity →</Link>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:'8px',paddingTop:'20px'}}>
                       <input type="checkbox" id="hit" checked={form.held_in_trust} onChange={e=>sf({held_in_trust:e.target.checked})} style={{width:'16px',height:'16px',accentColor:'#6644ff'}}/>
@@ -1038,6 +1057,7 @@ export default function NetWorthPage() {
                       <option value="">Personal (no entity)</option>
                       {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
                     </select>
+                    <Link href="/entities" style={{display:'inline-block',marginTop:'5px',fontSize:'11px',color:'#6644ff',textDecoration:'none',opacity:.8}}>+ Add Entity →</Link>
                   </div>
                 </>)}
 
@@ -1069,6 +1089,7 @@ export default function NetWorthPage() {
                       <option value="">Personal (no entity)</option>
                       {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
                     </select>
+                    <Link href="/entities" style={{display:'inline-block',marginTop:'5px',fontSize:'11px',color:'#6644ff',textDecoration:'none',opacity:.8}}>+ Add Entity →</Link>
                   </div>
                 </>)}
 
@@ -1121,6 +1142,7 @@ export default function NetWorthPage() {
                         <option value="">Personal (no entity)</option>
                         {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
                       </select>
+                      <Link href="/entities" style={{display:'inline-block',marginTop:'5px',fontSize:'11px',color:'#6644ff',textDecoration:'none',opacity:.8}}>+ Add Entity →</Link>
                     </div>
                   </div>
                 </>)}
@@ -1145,6 +1167,7 @@ export default function NetWorthPage() {
                       <option value="">Personal (no entity)</option>
                       {entities.map(e=><option key={e.id} value={e.name}>{e.name}</option>)}
                     </select>
+                    <Link href="/entities" style={{display:'inline-block',marginTop:'5px',fontSize:'11px',color:'#6644ff',textDecoration:'none',opacity:.8}}>+ Add Entity →</Link>
                   </div>
                 </>)}
 

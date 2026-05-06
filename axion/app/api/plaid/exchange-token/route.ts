@@ -108,6 +108,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
+      connected_account_id: connectedAccount.id,
       institution: institutionName,
       accounts: balanceRows.map((b: any) => ({ name: b.account_name, type: b.account_type, balance: b.current_balance })),
       holdings: holdingCount,
