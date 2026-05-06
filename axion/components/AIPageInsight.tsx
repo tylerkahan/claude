@@ -57,8 +57,14 @@ export default function AIPageInsight({ page }: { page: string }) {
     try {
       const res = await fetch('/api/ai/analyze', { method: 'POST' })
       const data = await res.json()
+      if (data.error) {
+        console.error('AI analyze error:', data.error)
+      }
       applyInsights(data)
-    } catch {}
+    } catch (err) {
+      console.error('AI analyze fetch error:', err)
+      setLoaded(true)
+    }
     analyzingRef.current = false
     setAnalyzing(false)
   }, [applyInsights])
