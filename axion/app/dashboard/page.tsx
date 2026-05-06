@@ -133,7 +133,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Row 2: Asset allocation + Action items */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div className="ax-split-grid">
 
             {/* Asset allocation */}
             <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.16)', borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
@@ -207,7 +207,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Row 3: Recent docs + Beneficiaries */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="ax-two-grid">
 
             {/* Recent docs */}
             <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.16)', borderRadius: '16px', padding: '20px 22px', backdropFilter: 'blur(20px)' }}>
