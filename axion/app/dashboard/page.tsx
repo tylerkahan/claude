@@ -157,7 +157,7 @@ export default async function DashboardPage() {
                       <div style={{ flex: 1.5, height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '3px' }} />
                       </div>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#e8eaf6', minWidth: '60px', textAlign: 'right' }}>${val >= 1000000 ? `${(val/1000000).toFixed(1)}M` : val >= 1000 ? `${(val/1000).toFixed(0)}K` : val.toLocaleString()}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#e8eaf6', minWidth: '60px', textAlign: 'right' }}>${val >= 1000000 ? `${(val/1000000).toFixed(1)}M` : val >= 1000 ? `${Math.round(val/1000)}K` : Math.round(val).toLocaleString()}</div>
                     </div>
                   )
                 })
