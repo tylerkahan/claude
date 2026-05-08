@@ -22,7 +22,7 @@ export default function EntitiesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', type: 'LLC', description: '', parent_name: '' })
+  const [form, setForm] = useState({ name: '', type: 'LLC', state: '', ein: '', description: '', parent_name: '' })
   const router = useRouter()
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function EntitiesPage() {
     setSaving(true)
     const supabase = createClient()
     await supabase.from('entities').insert({ user_id: user.id, ...form })
-    setForm({ name: '', type: 'LLC', description: '', parent_name: '' })
+    setForm({ name: '', type: 'LLC', state: '', ein: '', description: '', parent_name: '' })
     setShowForm(false)
     await fetchEntities(user.id)
     setSaving(false)
@@ -94,6 +94,16 @@ export default function EntitiesPage() {
                   </select>
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>State of Formation (optional)</label>
+                  <input value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} placeholder="e.g. TX, DE, WY"
+                    style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>EIN / Tax ID (optional)</label>
+                  <input value={form.ein} onChange={e => setForm(p => ({ ...p, ein: e.target.value }))} placeholder="e.g. 82-1234567"
+                    style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Owned By (parent entity)</label>
                   <input value={form.parent_name} onChange={e => setForm(p => ({ ...p, parent_name: e.target.value }))} placeholder="e.g. Smith Family Trust or leave blank"
                     style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
@@ -137,7 +147,11 @@ export default function EntitiesPage() {
                           <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{root.name}</span>
                           <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: `${c.border}33`, color: c.text }}>{root.type}</span>
                         </div>
-                        {root.description && <div style={{ fontSize: '12px', color: '#6b7ab8' }}>{root.description}</div>}
+                        <div style={{ fontSize: '12px', color: '#6b7ab8', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          {root.state && <span>📍 {root.state}</span>}
+                          {root.ein && <span>EIN {root.ein}</span>}
+                          {root.description && <span>{root.description}</span>}
+                        </div>
                       </div>
                       <button onClick={() => deleteEntity(root.id)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(255,60,60,0.2)', borderRadius: '6px', color: '#ff6666', cursor: 'pointer', fontSize: '11px' }}>✕</button>
                     </div>
@@ -154,7 +168,11 @@ export default function EntitiesPage() {
                                   <span style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{child.name}</span>
                                   <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: `${cc.border}33`, color: cc.text }}>{child.type}</span>
                                 </div>
-                                {child.description && <div style={{ fontSize: '12px', color: '#6b7ab8' }}>{child.description}</div>}
+                                <div style={{ fontSize: '12px', color: '#6b7ab8', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                  {child.state && <span>📍 {child.state}</span>}
+                                  {child.ein && <span>EIN {child.ein}</span>}
+                                  {child.description && <span>{child.description}</span>}
+                                </div>
                               </div>
                               <button onClick={() => deleteEntity(child.id)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(255,60,60,0.2)', borderRadius: '6px', color: '#ff6666', cursor: 'pointer', fontSize: '11px' }}>✕</button>
                             </div>
