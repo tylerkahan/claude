@@ -5,12 +5,23 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import AIPageInsight from '@/components/AIPageInsight'
 
-const ROLES = ['Beneficiary', 'Executor', 'Trustee', 'Guardian', 'Healthcare Proxy', 'Power of Attorney']
-const RELATIONSHIPS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Business Partner', 'Other']
+const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none', fontFamily: 'Inter,sans-serif', boxSizing: 'border-box' }
+const lbl = (text: string) => <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '.06em' }}>{text}</label>
+
+const ROLES = ['Primary Beneficiary', 'Secondary Beneficiary', 'Contingent Beneficiary', 'Executor', 'Trustee', 'Guardian', 'Healthcare Proxy', 'Power of Attorney']
+const RELATIONSHIPS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Business Partner', 'Charity / Organization', 'Other']
 const ROLE_COLORS: Record<string, string> = {
-  'Beneficiary': '#00aaff', 'Executor': '#6644ff', 'Trustee': '#00cc66',
-  'Guardian': '#ffaa00', 'Healthcare Proxy': '#ff6688', 'Power of Attorney': '#00d4ff'
+  'Primary Beneficiary': '#00aaff', 'Secondary Beneficiary': '#0077cc',
+  'Contingent Beneficiary': '#6644ff', 'Executor': '#6644ff',
+  'Trustee': '#00cc66', 'Guardian': '#ffaa00',
+  'Healthcare Proxy': '#ff6688', 'Power of Attorney': '#00d4ff'
 }
+
+type FormState = {
+  full_name: string; relationship: string; email: string; phone: string;
+  role: string; percentage: string; date_of_birth: string; notes: string;
+}
+const EMPTY: FormState = { full_name: '', relationship: 'Spouse', email: '', phone: '', role: 'Primary Beneficiary', percentage: '', date_of_birth: '', notes: '' }
 
 export default function BeneficiariesPage() {
   const [user, setUser] = useState<any>(null)
@@ -18,8 +29,9 @@ export default function BeneficiariesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ full_name: '', relationship: 'Spouse', email: '', role: 'Beneficiary' })
+  const [form, setForm] = useState<FormState>(EMPTY)
   const router = useRouter()
+  const sf = (p: Partial<FormState>) => setForm(f => ({ ...f, ...p }))
 
   useEffect(() => {
     async function load() {
@@ -43,8 +55,18 @@ export default function BeneficiariesPage() {
     e.preventDefault()
     setSaving(true)
     const supabase = createClient()
-    await supabase.from('beneficiaries').insert({ user_id: user.id, ...form })
-    setForm({ full_name: '', relationship: 'Spouse', email: '', role: 'Beneficiary' })
+    await supabase.from('beneficiaries').insert({
+      user_id: user.id,
+      full_name: form.full_name,
+      relationship: form.relationship,
+      email: form.email || null,
+      phone: form.phone || null,
+      role: form.role,
+      percentage: form.percentage ? parseFloat(form.percentage) : null,
+      date_of_birth: form.date_of_birth || null,
+      notes: form.notes || null,
+    })
+    setForm(EMPTY)
     setShowForm(false)
     await fetchPeople(user.id)
     setSaving(false)
@@ -56,6 +78,9 @@ export default function BeneficiariesPage() {
     await fetchPeople(user.id)
   }
 
+  // Warn if beneficiary percentages don't add to 100
+  const primaryPct = people.filter(p => p.role === 'Primary Beneficiary').reduce((s, p) => s + (p.percentage || 0), 0)
+
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#6b7ab8' }}>Loading...</div>
 
   return (
@@ -64,84 +89,118 @@ export default function BeneficiariesPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ height: '58px', flexShrink: 0, background: 'rgba(6,10,32,0.9)', borderBottom: '1px solid rgba(0,100,255,0.12)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '16px', backdropFilter: 'blur(20px)' }}>
           <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Beneficiaries</span>
-          <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Manage your heirs and key roles</span>
+          <span style={{ fontSize: '12px', color: '#6b7ab8' }}>Heirs, executors &amp; key roles</span>
           <div style={{ flex: 1 }} />
           <button onClick={() => setShowForm(!showForm)} style={{ padding: '7px 16px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>+ Add Person</button>
         </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
-        <AIPageInsight page="beneficiaries" />
+          <AIPageInsight page="beneficiaries" />
 
-        {/* Add form */}
-        {showForm && (
-          <div style={{ background: 'rgba(8,14,40,0.9)', border: '1px solid rgba(0,100,255,0.25)', borderRadius: '16px', padding: '28px', marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Add Person</h3>
-            <form onSubmit={addPerson} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Full Name</label>
-                <input required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Doe"
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Email (optional)</label>
-                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@example.com"
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Relationship</label>
-                <select value={form.relationship} onChange={e => setForm(p => ({ ...p, relationship: e.target.value }))}
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }}>
-                  {RELATIONSHIPS.map(r => <option key={r} style={{ background: '#060818' }}>{r}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Role</label>
-                <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }}>
-                  {ROLES.map(r => <option key={r} style={{ background: '#060818' }}>{r}</option>)}
-                </select>
-              </div>
-              <div style={{ gridColumn: '1/-1', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-                <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-                  {saving ? 'Saving...' : 'Add Person'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+          {/* Percentage warning */}
+          {people.length > 0 && primaryPct > 0 && primaryPct !== 100 && (
+            <div style={{ background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.25)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', fontSize: '13px', color: '#ffaa00', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>⚠</span>
+              <span>Primary beneficiary allocations total <strong>{primaryPct}%</strong> — should equal 100%</span>
+            </div>
+          )}
 
-        {/* People list */}
-        {people.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#6b7ab8' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>👥</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '6px' }}>No beneficiaries yet</div>
-            <div style={{ fontSize: '13px' }}>Add your family members, executor, and other key people.</div>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-            {people.map(p => {
-              const initials = p.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-              return (
-                <div key={p.id} style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg,#0044cc,#0099ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', color: '#fff', flexShrink: 0 }}>{initials}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{p.full_name}</div>
-                      <div style={{ fontSize: '12px', color: '#6b7ab8', marginTop: '2px' }}>{p.relationship}</div>
-                    </div>
-                    <button onClick={() => deletePerson(p.id)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(255,60,60,0.2)', borderRadius: '6px', color: '#ff6666', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: `${ROLE_COLORS[p.role] || '#6b7ab8'}18`, border: `1px solid ${ROLE_COLORS[p.role] || '#6b7ab8'}44`, color: ROLE_COLORS[p.role] || '#6b7ab8' }}>
-                      {p.role}
-                    </span>
-                    {p.email && <span style={{ fontSize: '11px', color: '#6b7ab8' }}>{p.email}</span>}
-                  </div>
+          {/* Add form */}
+          {showForm && (
+            <div style={{ background: 'rgba(8,14,40,0.9)', border: '1px solid rgba(0,100,255,0.25)', borderRadius: '16px', padding: '28px', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Add Person</h3>
+              <form onSubmit={addPerson} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  {lbl('Full Name')}
+                  <input required value={form.full_name} onChange={e => sf({ full_name: e.target.value })} placeholder="Jane Kahan" style={inp} />
                 </div>
-              )
-            })}
-          </div>
-        )}
+                <div>
+                  {lbl('Relationship')}
+                  <select value={form.relationship} onChange={e => sf({ relationship: e.target.value })} style={inp}>
+                    {RELATIONSHIPS.map(r => <option key={r} style={{ background: '#060818' }}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {lbl('Email (optional)')}
+                  <input type="email" value={form.email} onChange={e => sf({ email: e.target.value })} placeholder="jane@example.com" style={inp} />
+                </div>
+                <div>
+                  {lbl('Phone (optional)')}
+                  <input type="tel" value={form.phone} onChange={e => sf({ phone: e.target.value })} placeholder="+1 (555) 000-0000" style={inp} />
+                </div>
+                <div>
+                  {lbl('Role')}
+                  <select value={form.role} onChange={e => sf({ role: e.target.value })} style={inp}>
+                    {ROLES.map(r => <option key={r} style={{ background: '#060818' }}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {lbl('Inheritance % (optional)')}
+                  <input type="number" min="0" max="100" step="0.01" value={form.percentage} onChange={e => sf({ percentage: e.target.value })} placeholder="e.g. 50" style={inp} />
+                </div>
+                <div>
+                  {lbl('Date of Birth (optional)')}
+                  <input type="date" value={form.date_of_birth} onChange={e => sf({ date_of_birth: e.target.value })} style={{ ...inp, colorScheme: 'dark' }} />
+                </div>
+                <div />
+                <div style={{ gridColumn: '1/-1' }}>
+                  {lbl('Notes (optional)')}
+                  <input value={form.notes} onChange={e => sf({ notes: e.target.value })} placeholder="e.g. Minor — per stirpes, holds copy of will" style={inp} />
+                </div>
+                <div style={{ gridColumn: '1/-1', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '8px', color: '#6b7ab8', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                  <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                    {saving ? 'Saving...' : 'Add Person'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* People list */}
+          {people.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px', color: '#6b7ab8' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>👥</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '6px' }}>No beneficiaries yet</div>
+              <div style={{ fontSize: '13px' }}>Add your family members, executor, and other key people.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              {people.map(p => {
+                const initials = (p.full_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                const color = ROLE_COLORS[p.role] || '#6b7ab8'
+                const age = p.date_of_birth ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 3.156e10) : null
+                return (
+                  <div key={p.id} style={{ background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg,#0044cc,#0099ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', color: '#fff', flexShrink: 0 }}>{initials}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{p.full_name}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7ab8', marginTop: '2px' }}>
+                          {p.relationship}{age !== null ? ` · Age ${age}` : ''}
+                        </div>
+                      </div>
+                      {p.percentage != null && p.percentage > 0 && (
+                        <div style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: "'Space Grotesk',sans-serif" }}>{p.percentage}%</div>
+                      )}
+                      <button onClick={() => deletePerson(p.id)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(255,60,60,0.2)', borderRadius: '6px', color: '#ff6666', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: p.email || p.phone || p.notes ? '10px' : '0' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: `${color}18`, border: `1px solid ${color}44`, color }}>
+                        {p.role}
+                      </span>
+                    </div>
+                    {(p.email || p.phone) && (
+                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>
+                        {p.email}{p.email && p.phone ? ' · ' : ''}{p.phone}
+                      </div>
+                    )}
+                    {p.notes && <div style={{ fontSize: '12px', color: '#4a5578', marginTop: '4px' }}>{p.notes}</div>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

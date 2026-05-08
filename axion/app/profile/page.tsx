@@ -4,15 +4,23 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 
+const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none', fontFamily: 'Inter,sans-serif', boxSizing: 'border-box' }
+const lbl = (text: string) => <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase' as const, letterSpacing: '.06em' }}>{text}</label>
+
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Domestic Partnership']
+const COUNTRIES = ['USA', 'Canada', 'United Kingdom', 'Australia', 'Other']
+
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState({ full_name: '', phone: '', date_of_birth: '', state: '' })
+  const [profile, setProfile] = useState({
+    full_name: '', phone: '', date_of_birth: '', state: '',
+    address: '', city: '', zip: '', country: 'USA', marital_status: ''
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const router = useRouter()
-
-  const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
   useEffect(() => {
     async function load() {
@@ -21,7 +29,17 @@ export default function ProfilePage() {
       if (!user) { router.push('/login'); return }
       setUser(user)
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (data) setProfile({ full_name: data.full_name || '', phone: data.phone || '', date_of_birth: data.date_of_birth || '', state: data.state || '' })
+      if (data) setProfile({
+        full_name:      data.full_name      || '',
+        phone:          data.phone          || '',
+        date_of_birth:  data.date_of_birth  || '',
+        state:          data.state          || '',
+        address:        data.address        || '',
+        city:           data.city           || '',
+        zip:            data.zip            || '',
+        country:        data.country        || 'USA',
+        marital_status: data.marital_status || '',
+      })
       setLoading(false)
     }
     load()
@@ -37,7 +55,9 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const initials = profile.full_name ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : user?.email?.slice(0, 2).toUpperCase() || 'AX'
+  const initials = profile.full_name
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.slice(0, 2).toUpperCase() || 'AX'
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#6b7ab8' }}>Loading...</div>
 
@@ -49,10 +69,11 @@ export default function ProfilePage() {
           <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '16px', fontWeight: 700, color: '#fff' }}>Profile</span>
           <span style={{ fontSize: '12px', color: '#6b7ab8', marginLeft: '10px' }}>Your personal information</span>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 28px' }}>
-          <div style={{ maxWidth: '640px' }}>
 
-            {/* Avatar section */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 28px' }}>
+          <div style={{ maxWidth: '680px' }}>
+
+            {/* Avatar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '32px' }}>
               <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,#0055ff,#00aaff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, color: '#fff', flexShrink: 0, boxShadow: '0 0 20px rgba(0,100,255,0.3)' }}>{initials}</div>
               <div>
@@ -64,47 +85,80 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Profile form */}
-            <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px', backdropFilter: 'blur(20px)' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Personal Information</div>
-              <form onSubmit={saveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={saveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Personal Info */}
+              <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px', backdropFilter: 'blur(20px)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '18px', textTransform: 'uppercase', letterSpacing: '.08em' }}>Personal Information</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Full Name</label>
-                    <input value={profile.full_name} onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))} placeholder="Your full legal name"
-                      style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+                    {lbl('Full Legal Name')}
+                    <input value={profile.full_name} onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))} placeholder="Tyler Kahan" style={inp} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Email</label>
-                    <input value={user?.email || ''} disabled style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,100,255,0.08)', borderRadius: '8px', color: '#4a5578', fontSize: '14px', outline: 'none', cursor: 'not-allowed' }} />
+                    {lbl('Email')}
+                    <input value={user?.email || ''} disabled style={{ ...inp, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,100,255,0.08)', color: '#4a5578', cursor: 'not-allowed' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Phone</label>
-                    <input type="tel" value={profile.phone} onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+1 (555) 000-0000"
-                      style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+                    {lbl('Phone')}
+                    <input type="tel" value={profile.phone} onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+1 (555) 000-0000" style={inp} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Date of Birth</label>
-                    <input type="date" value={profile.date_of_birth} onChange={e => setProfile(p => ({ ...p, date_of_birth: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none', colorScheme: 'dark' }} />
+                    {lbl('Date of Birth')}
+                    <input type="date" value={profile.date_of_birth} onChange={e => setProfile(p => ({ ...p, date_of_birth: e.target.value }))} style={{ ...inp, colorScheme: 'dark' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>State</label>
-                    <select value={profile.state} onChange={e => setProfile(p => ({ ...p, state: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }}>
-                      <option value="" style={{ background: '#060818' }}>Select state...</option>
-                      {US_STATES.map(s => <option key={s} value={s} style={{ background: '#060818' }}>{s}</option>)}
+                    {lbl('Marital Status')}
+                    <select value={profile.marital_status} onChange={e => setProfile(p => ({ ...p, marital_status: e.target.value }))} style={inp}>
+                      <option value="" style={{ background: '#060818' }}>Select...</option>
+                      {MARITAL_STATUSES.map(s => <option key={s} value={s} style={{ background: '#060818' }}>{s}</option>)}
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '4px' }}>
-                  <button type="submit" disabled={saving} style={{ padding: '10px 28px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  {saved && <span style={{ fontSize: '13px', color: '#00cc66', fontWeight: 600 }}>✓ Saved!</span>}
+              </div>
+
+              {/* Address */}
+              <div style={{ background: 'rgba(8,14,40,0.7)', border: '1px solid rgba(0,100,255,0.15)', borderRadius: '16px', padding: '24px', backdropFilter: 'blur(20px)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '18px', textTransform: 'uppercase', letterSpacing: '.08em' }}>Home Address</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    {lbl('Street Address')}
+                    <input value={profile.address} onChange={e => setProfile(p => ({ ...p, address: e.target.value }))} placeholder="4821 Barton Creek Blvd" style={inp} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      {lbl('City')}
+                      <input value={profile.city} onChange={e => setProfile(p => ({ ...p, city: e.target.value }))} placeholder="Austin" style={inp} />
+                    </div>
+                    <div>
+                      {lbl('State')}
+                      <select value={profile.state} onChange={e => setProfile(p => ({ ...p, state: e.target.value }))} style={inp}>
+                        <option value="" style={{ background: '#060818' }}>—</option>
+                        {US_STATES.map(s => <option key={s} value={s} style={{ background: '#060818' }}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      {lbl('ZIP Code')}
+                      <input value={profile.zip} onChange={e => setProfile(p => ({ ...p, zip: e.target.value }))} placeholder="78735" style={inp} />
+                    </div>
+                  </div>
+                  <div style={{ maxWidth: '220px' }}>
+                    {lbl('Country')}
+                    <select value={profile.country} onChange={e => setProfile(p => ({ ...p, country: e.target.value }))} style={inp}>
+                      {COUNTRIES.map(c => <option key={c} value={c} style={{ background: '#060818' }}>{c}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </form>
-            </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button type="submit" disabled={saving} style={{ padding: '11px 32px', background: 'linear-gradient(135deg,#0055ff,#00aaff)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                {saved && <span style={{ fontSize: '13px', color: '#00cc66', fontWeight: 600 }}>✓ Saved!</span>}
+              </div>
+            </form>
+
           </div>
         </div>
       </div>
