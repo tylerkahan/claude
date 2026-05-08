@@ -99,7 +99,7 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: '32px', fontWeight: 800, color: '#fff', lineHeight: 1, marginBottom: '6px' }}>
-                ${totalValue.toLocaleString()}
+                ${Math.round(totalValue).toLocaleString()}
               </div>
               <div style={{ fontSize: '12px', color: '#6b7ab8' }}>
                 {(assets?.length ?? 0) + (digitalAssets?.length ?? 0)} manual · {connectedAccounts?.length ?? 0} connected
