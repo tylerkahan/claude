@@ -184,7 +184,7 @@ BEGIN
 
   -- ── 7. DOCUMENTS ────────────────────────────────────────────
   -- NOTE: column is "file_path" (not "file_url")
-  INSERT INTO documents (user_id, name, category, file_path, file_size, notes, created_at) VALUES
+  INSERT INTO documents (user_id, name, category, file_path, file_size, notes, uploaded_at) VALUES
     (uid, 'Kahan Family Revocable Trust Agreement',   'Trust',             'trust.pdf',          204800, 'Executed 2022 — Austin TX',                  now() - interval '14 days'),
     (uid, 'Last Will & Testament — Tyler Kahan',      'Will',              'will.pdf',           153600, 'Notarized copy on file',                     now() - interval '30 days'),
     (uid, 'Durable Power of Attorney',                'Power of Attorney', 'poa.pdf',            102400, 'Sarah Kahan as agent',                       now() - interval '30 days'),
