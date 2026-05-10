@@ -358,14 +358,15 @@ export default function EntitiesPage() {
                 <button onClick={()=>setShowForm(true)} style={{ marginTop:'18px', padding:'9px 22px', background:'linear-gradient(135deg,#0055ff,#00aaff)', border:'none', borderRadius:'9px', color:'#fff', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>+ Add Your First Entity</button>
               </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', minWidth:'fit-content', margin:'0 auto' }}>
+              /* zoom wrapper — scales whole tree down to fit on screen */
+              <div style={{ zoom: 0.6, display:'flex', flexDirection:'column', alignItems:'center' }}>
                 {/* Grantor node */}
-                <div style={{ width:'200px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'11px', padding:'13px 16px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
-                  <div style={{ marginBottom:'7px' }}>
-                    <span style={{ fontSize:'8px', fontWeight:800, letterSpacing:'0.1em', padding:'2px 8px', borderRadius:'3px', background:'rgba(0,170,255,0.15)', color:'#00aaff', border:'1px solid rgba(0,170,255,0.45)' }}>GRANTOR</span>
+                <div style={{ width:'220px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'12px', padding:'14px 18px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
+                  <div style={{ marginBottom:'8px' }}>
+                    <span style={{ fontSize:'9px', fontWeight:800, letterSpacing:'0.1em', padding:'2px 9px', borderRadius:'4px', background:'rgba(0,170,255,0.15)', color:'#00aaff', border:'1px solid rgba(0,170,255,0.45)' }}>GRANTOR</span>
                   </div>
-                  <div style={{ fontSize:'15px', fontWeight:800, color:'#fff', marginBottom:'3px', fontFamily:"'Space Grotesk',sans-serif" }}>{profile?.full_name || user?.email?.split('@')[0] || 'You'}</div>
-                  <div style={{ fontSize:'11px', color:'#6b7ab8' }}>Individual{profile?.state ? ` · ${profile.state}` : ''}</div>
+                  <div style={{ fontSize:'17px', fontWeight:800, color:'#fff', marginBottom:'3px', fontFamily:"'Space Grotesk',sans-serif" }}>{profile?.full_name || user?.email?.split('@')[0] || 'You'}</div>
+                  <div style={{ fontSize:'12px', color:'#6b7ab8' }}>Individual{profile?.state ? ` · ${profile.state}` : ''}</div>
                 </div>
 
                 <div className="tree-line-down" />
