@@ -148,18 +148,6 @@ export default function BeneficiaryPortal() {
                       <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7ab8', marginBottom: '4px', textTransform: 'uppercase' }}>Relationship</div>
                       <div style={{ fontSize: '14px', color: '#fff', fontWeight: 600 }}>{rec.relationship || '—'}</div>
                     </div>
-                    {rec.percentage > 0 && (
-                      <div style={{ padding: '12px 16px', background: 'rgba(0,170,255,0.05)', border: '1px solid rgba(0,170,255,0.15)', borderRadius: '10px' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7ab8', marginBottom: '4px', textTransform: 'uppercase' }}>Your Share</div>
-                        <div style={{ fontSize: '20px', color: '#00aaff', fontWeight: 800, fontFamily: "'Space Grotesk',sans-serif" }}>{rec.percentage}%</div>
-                      </div>
-                    )}
-                    {rec.notes && (
-                      <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,100,255,0.1)', borderRadius: '10px', gridColumn: rec.percentage > 0 ? 'auto' : '1/-1' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7ab8', marginBottom: '4px', textTransform: 'uppercase' }}>Notes</div>
-                        <div style={{ fontSize: '13px', color: '#aaa' }}>{rec.notes}</div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
