@@ -359,7 +359,7 @@ export default function EntitiesPage() {
               </div>
             ) : (
               /* zoom wrapper — scales whole tree down to fit on screen */
-              <div style={{ zoom: 0.6, display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <div style={{ zoom: 0.78, display:'flex', flexDirection:'column', alignItems:'center' }}>
                 {/* Grantor node */}
                 <div style={{ width:'220px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'12px', padding:'14px 18px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
                   <div style={{ marginBottom:'8px' }}>
