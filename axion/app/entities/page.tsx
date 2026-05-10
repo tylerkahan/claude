@@ -309,7 +309,7 @@ export default function EntitiesPage() {
               <div style={{ fontSize:'28px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif", lineHeight:1 }}>Ownership Tree</div>
             </div>
             <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-              <button style={{ padding:'8px 16px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'8px', color:'#e8eaf6', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Export PDF</button>
+              <button onClick={() => window.print()} style={{ padding:'8px 16px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'8px', color:'#e8eaf6', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Export PDF</button>
               <button onClick={() => setShowForm(!showForm)} style={{ padding:'8px 18px', background:'linear-gradient(135deg,#0055ff,#00aaff)', border:'none', borderRadius:'8px', color:'#fff', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>+ Add Entity</button>
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function EntitiesPage() {
               </div>
             ) : (
               /* zoom wrapper — scales whole tree down to fit on screen */
-              <div style={{ zoom: 0.78, display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <div style={{ zoom: 0.9, display:'flex', flexDirection:'column', alignItems:'center' }}>
                 {/* Grantor node */}
                 <div style={{ width:'220px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'12px', padding:'14px 18px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
                   <div style={{ marginBottom:'8px' }}>

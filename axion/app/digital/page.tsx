@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
@@ -24,7 +24,9 @@ export default function DigitalPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ platform: '', type: 'Crypto Wallet', username: '', estimated_value: '', instructions: 'No action needed', notes: '' })
+  const [form, setForm] = useState({ platform: '', type: 'Crypto Wallet', username: '', password: '', estimated_value: '', instructions: 'No action needed', notes: '' })
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({})
+  const [copiedId, setCopiedId] = useState<string|null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -54,11 +56,12 @@ export default function DigitalPage() {
       platform: form.platform,
       type: form.type,
       username: form.username,
+      password: form.password || null,
       estimated_value: parseFloat(form.estimated_value) || 0,
       instructions: form.instructions,
       notes: form.notes
     })
-    setForm({ platform: '', type: 'Crypto Wallet', username: '', estimated_value: '', instructions: 'No action needed', notes: '' })
+    setForm({ platform: '', type: 'Crypto Wallet', username: '', password: '', estimated_value: '', instructions: 'No action needed', notes: '' })
     setShowForm(false)
     await fetchAssets(user.id)
     setSaving(false)
@@ -124,6 +127,11 @@ export default function DigitalPage() {
                   style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
               </div>
               <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Password (optional)</label>
+                <input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Stored securely"
+                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#6b7ab8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Estimated Value ($)</label>
                 <input type="number" value={form.estimated_value} onChange={e => setForm(p => ({ ...p, estimated_value: e.target.value }))} placeholder="0"
                   style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(0,100,255,0.18)', borderRadius: '8px', color: '#e8eaf6', fontSize: '14px', outline: 'none' }} />
@@ -171,8 +179,23 @@ export default function DigitalPage() {
                         <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{a.platform}</span>
                         <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '20px', background: `${color}18`, border: `1px solid ${color}44`, color }}>{a.type}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6b7ab8' }}>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6b7ab8', flexWrap: 'wrap', alignItems: 'center' }}>
                         {a.username && <span>{a.username}</span>}
+                        {a.password && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontFamily: 'monospace', color: revealedPasswords[a.id] ? '#00cc66' : '#6b7ab8', letterSpacing: revealedPasswords[a.id] ? '0' : '2px' }}>
+                              {revealedPasswords[a.id] ? a.password : '••••••••'}
+                            </span>
+                            <button onClick={() => setRevealedPasswords(p => ({ ...p, [a.id]: !p[a.id] }))}
+                              style={{ padding: '1px 7px', background: 'rgba(0,100,255,0.1)', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '4px', color: '#00aaff', cursor: 'pointer', fontSize: '10px', fontWeight: 700 }}>
+                              {revealedPasswords[a.id] ? 'Hide' : 'Show'}
+                            </button>
+                            <button onClick={() => { navigator.clipboard.writeText(a.password); setCopiedId(a.id); setTimeout(() => setCopiedId(null), 2000) }}
+                              style={{ padding: '1px 7px', background: copiedId === a.id ? 'rgba(0,204,102,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${copiedId === a.id ? 'rgba(0,204,102,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: copiedId === a.id ? '#00cc66' : '#6b7ab8', cursor: 'pointer', fontSize: '10px', fontWeight: 700 }}>
+                              {copiedId === a.id ? '✓ Copied' : 'Copy'}
+                            </button>
+                          </span>
+                        )}
                         <span style={{ color: '#ffaa00' }}>{a.instructions}</span>
                       </div>
                       {a.notes && <div style={{ fontSize: '12px', color: '#4a5578', marginTop: '4px' }}>{a.notes}</div>}

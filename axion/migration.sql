@@ -68,8 +68,8 @@ ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS notes         text;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS notes text;
 
 -- ── digital_assets ──────────────────────────────────────────
--- The app uses platform + type; no changes needed here.
--- (seed_test_data.sql has been updated to match these columns)
+-- Add password column for storing account credentials
+ALTER TABLE digital_assets ADD COLUMN IF NOT EXISTS password text;
 
 -- ── compliance_checks ───────────────────────────────────────
 -- The app uses check_id; no changes needed here.
