@@ -26,10 +26,13 @@ const EMPTY: FormState = { full_name: '', relationship: 'Spouse', email: '', pho
 export default function BeneficiariesPage() {
   const [user, setUser] = useState<any>(null)
   const [people, setPeople] = useState<any[]>([])
+  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY)
+  const [inviting, setInviting] = useState<string | null>(null)
+  const [inviteMsg, setInviteMsg] = useState<{id: string; msg: string; ok: boolean} | null>(null)
   const router = useRouter()
   const sf = (p: Partial<FormState>) => setForm(f => ({ ...f, ...p }))
 
@@ -39,6 +42,8 @@ export default function BeneficiariesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+      setProfile(prof)
       await fetchPeople(user.id)
       setLoading(false)
     }
@@ -76,6 +81,33 @@ export default function BeneficiariesPage() {
     const supabase = createClient()
     await supabase.from('beneficiaries').delete().eq('id', id)
     await fetchPeople(user.id)
+  }
+
+  async function sendInvite(person: any) {
+    if (!person.email) return
+    setInviting(person.id)
+    setInviteMsg(null)
+    try {
+      const res = await fetch('/api/invite-beneficiary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          beneficiary_id: person.id,
+          email: person.email,
+          grantor_name: profile?.full_name || user?.email?.split('@')[0],
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setInviteMsg({ id: person.id, msg: data.fallback ? `Invite link: ${data.signupUrl}` : `Invite sent to ${person.email}`, ok: true })
+        await fetchPeople(user.id)
+      } else {
+        setInviteMsg({ id: person.id, msg: data.error || 'Failed to send invite', ok: false })
+      }
+    } catch {
+      setInviteMsg({ id: person.id, msg: 'Network error — try again', ok: false })
+    }
+    setInviting(null)
   }
 
   // Warn if beneficiary percentages don't add to 100
@@ -185,17 +217,46 @@ export default function BeneficiariesPage() {
                       )}
                       <button onClick={() => deletePerson(p.id)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(255,60,60,0.2)', borderRadius: '6px', color: '#ff6666', cursor: 'pointer', fontSize: '11px' }}>✕</button>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: p.email || p.phone || p.notes ? '10px' : '0' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: `${color}18`, border: `1px solid ${color}44`, color }}>
                         {p.role}
                       </span>
+                      {p.invite_status === 'accepted' && (
+                        <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'rgba(0,204,102,0.12)', border: '1px solid rgba(0,204,102,0.3)', color: '#00cc66' }}>✓ Portal Active</span>
+                      )}
+                      {p.invite_status === 'invited' && (
+                        <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'rgba(255,170,0,0.1)', border: '1px solid rgba(255,170,0,0.25)', color: '#ffaa00' }}>⏳ Invite Sent</span>
+                      )}
                     </div>
                     {(p.email || p.phone) && (
-                      <div style={{ fontSize: '12px', color: '#6b7ab8' }}>
+                      <div style={{ fontSize: '12px', color: '#6b7ab8', marginBottom: '10px' }}>
                         {p.email}{p.email && p.phone ? ' · ' : ''}{p.phone}
                       </div>
                     )}
-                    {p.notes && <div style={{ fontSize: '12px', color: '#4a5578', marginTop: '4px' }}>{p.notes}</div>}
+                    {p.notes && <div style={{ fontSize: '12px', color: '#4a5578', marginBottom: '10px' }}>{p.notes}</div>}
+
+                    {/* Invite button */}
+                    {p.email && p.invite_status !== 'accepted' && (
+                      <div>
+                        <button
+                          onClick={() => sendInvite(p)}
+                          disabled={inviting === p.id}
+                          style={{ width: '100%', padding: '8px 14px', background: p.invite_status === 'invited' ? 'transparent' : 'rgba(0,85,255,0.08)', border: `1px solid ${p.invite_status === 'invited' ? 'rgba(255,170,0,0.2)' : 'rgba(0,100,255,0.25)'}`, borderRadius: '8px', color: p.invite_status === 'invited' ? '#ffaa00' : '#00aaff', fontSize: '12px', fontWeight: 700, cursor: inviting === p.id ? 'not-allowed' : 'pointer', opacity: inviting === p.id ? 0.6 : 1 }}>
+                          {inviting === p.id ? '⏳ Sending...' : p.invite_status === 'invited' ? '↻ Resend Invite' : '✉ Send Beneficiary Portal Invite'}
+                        </button>
+                        {inviteMsg?.id === p.id && inviteMsg && (
+                          <div style={{ marginTop: '6px', fontSize: '11px', color: inviteMsg.ok ? '#00cc66' : '#ff6688', padding: '6px 10px', background: inviteMsg.ok ? 'rgba(0,204,102,0.06)' : 'rgba(255,60,60,0.06)', borderRadius: '6px', wordBreak: 'break-all' }}>
+                            {inviteMsg.ok ? '✓ ' : '⚠ '}{inviteMsg.msg}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!p.email && (
+                      <div style={{ fontSize: '11px', color: '#3d4a7a', fontStyle: 'italic' }}>Add an email to send a portal invite</div>
+                    )}
+                    {p.invite_status === 'accepted' && (
+                      <div style={{ fontSize: '11px', color: '#00cc66' }}>✓ Beneficiary has created their portal account</div>
+                    )}
                   </div>
                 )
               })}

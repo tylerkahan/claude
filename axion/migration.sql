@@ -74,3 +74,14 @@ ALTER TABLE digital_assets ADD COLUMN IF NOT EXISTS password text;
 -- ── compliance_checks ───────────────────────────────────────
 -- The app uses check_id; no changes needed here.
 -- (seed_test_data.sql has been updated to match this column)
+
+-- ── beneficiary invite tracking ──────────────────────────────
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS invite_status text DEFAULT 'not_invited';
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS invite_sent_at timestamptz;
+
+-- ── estate transfer / attorney contact on profiles ───────────
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_name  text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_firm  text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_email text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_phone text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_notes text;
