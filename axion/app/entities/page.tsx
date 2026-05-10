@@ -282,6 +282,187 @@ export default function EntitiesPage() {
     await fetchEntities(user.id)
   }
 
+  function exportPDF() {
+    const ownerName = profile?.full_name || user?.email?.split('@')[0] || 'Owner'
+    const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+    const totalValue = Object.values(entityValueMap).reduce((s,v)=>s+v.value,0)
+
+    const typeColors: Record<string,string> = {
+      'Revocable Trust':'#00aaff','Irrevocable Trust':'#7b61ff',
+      'LLC':'#00cc66','LP':'#ffaa00','S-Corp':'#ff6688','C-Corp':'#ff6688','Other':'#6b7ab8'
+    }
+    const getColor = (type: string) => {
+      for (const [k,v] of Object.entries(typeColors)) if (type.includes(k.split(' ')[0])) return v
+      return '#6b7ab8'
+    }
+
+    const buildTreeHTML = (ents: any[], parentName: string|null, depth: number): string => {
+      const children = ents.filter((e: any) =>
+        parentName === null
+          ? (!e.parent_name || !ents.find((p:any) => p.name === e.parent_name))
+          : e.parent_name === parentName
+      )
+      if (!children.length) return ''
+      return children.map((e: any) => {
+        const color = getColor(e.type)
+        const val = entityValueMap[e.name]
+        const pct = e.metadata?.ownership_display || e.ownership_pct ? `${e.metadata?.ownership_display || e.ownership_pct}%` : ''
+        return `
+          <tr>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;">
+              <div style="padding-left:${depth*24}px;display:flex;align-items:center;gap:8px;">
+                ${depth > 0 ? `<span style="color:#bbb;font-size:12px;">└─</span>` : ''}
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+                <strong style="font-size:14px;color:#111;">${e.name}</strong>
+                ${pct ? `<span style="font-size:11px;color:#0055ff;font-weight:700;background:#e8f0ff;padding:1px 6px;border-radius:10px;">${pct}</span>` : ''}
+              </div>
+            </td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.type}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.state||'—'}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.ein ? `EIN: ${e.ein}` : '—'}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:13px;font-weight:700;color:#111;text-align:right;">${val ? '$'+Math.round(val.value).toLocaleString() : '—'}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;text-align:center;">
+              <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${e.status==='Active'?'#e6f9f0':'#fff3e0'};color:${e.status==='Active'?'#00aa55':'#cc7700'};">${e.status||'Active'}</span>
+            </td>
+          </tr>
+          ${buildTreeHTML(ents, e.name, depth+1)}
+        `
+      }).join('')
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Entity Structure — ${ownerName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111; background: #fff; padding: 40px 48px; }
+    @media print {
+      body { padding: 20px 32px; }
+      .no-print { display: none; }
+      @page { margin: 0.5in; }
+    }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2px solid #0055ff; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-box { width: 36px; height: 36px; background: #0055ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 18px; }
+    .logo-text { font-size: 22px; font-weight: 800; color: #0055ff; letter-spacing: -0.5px; }
+    .header-right { text-align: right; font-size: 12px; color: #666; line-height: 1.8; }
+    .title { font-size: 26px; font-weight: 800; color: #0a0a1a; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #666; margin-bottom: 32px; }
+    .summary-row { display: flex; gap: 16px; margin-bottom: 32px; }
+    .stat-box { flex: 1; border: 1px solid #e0e4ef; border-radius: 10px; padding: 16px 20px; }
+    .stat-label { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+    .stat-value { font-size: 22px; font-weight: 800; color: #0055ff; }
+    .section-title { font-size: 13px; font-weight: 700; color: #0055ff; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+    thead th { background: #f4f6ff; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .07em; text-align: left; border-bottom: 2px solid #dce1f0; }
+    thead th:last-child { text-align: right; }
+    tbody tr:hover { background: #fafbff; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e4ef; display: flex; justify-content: space-between; font-size: 11px; color: #aaa; }
+    .print-btn { position: fixed; top: 24px; right: 24px; padding: 10px 22px; background: #0055ff; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <button class="no-print print-btn" onclick="window.print()">⬇ Save as PDF</button>
+  <div class="header">
+    <div class="logo">
+      <div class="logo-box">A</div>
+      <span class="logo-text">AXION</span>
+    </div>
+    <div class="header-right">
+      <div><strong>Entity Structure Report</strong></div>
+      <div>${ownerName}</div>
+      <div>Generated ${today}</div>
+      <div style="color:#0055ff;font-weight:600;">CONFIDENTIAL</div>
+    </div>
+  </div>
+
+  <div class="title">Ownership Tree</div>
+  <div class="subtitle">${entities.length} entit${entities.length===1?'y':'ies'} · ${[...new Set(entities.map((e:any)=>e.type))].join(' · ')}</div>
+
+  <div class="summary-row">
+    <div class="stat-box">
+      <div class="stat-label">Total Entities</div>
+      <div class="stat-value">${entities.length}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Total Entity Value</div>
+      <div class="stat-value">$${Math.round(totalValue).toLocaleString()}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Grantor</div>
+      <div class="stat-value" style="font-size:16px;">${ownerName}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Active Entities</div>
+      <div class="stat-value">${entities.filter((e:any)=>e.status!=='Inactive').length}</div>
+    </div>
+  </div>
+
+  <div class="section-title">Entity Details</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Entity Name</th>
+        <th>Type</th>
+        <th>State</th>
+        <th>EIN</th>
+        <th style="text-align:right">Holdings</th>
+        <th style="text-align:center">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#00d4ff;flex-shrink:0;"></span>
+            <strong style="font-size:14px;color:#111;">${ownerName}</strong>
+            <span style="font-size:11px;color:#0055ff;font-weight:700;background:#e8f0ff;padding:1px 6px;border-radius:10px;">GRANTOR</span>
+          </div>
+        </td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">Individual</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${profile?.state || profile?.city || '—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">—</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:13px;font-weight:700;color:#111;text-align:right;">—</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;text-align:center;">—</td>
+      </tr>
+      ${buildTreeHTML(entities, null, 1)}
+    </tbody>
+  </table>
+
+  ${entities.some((e:any)=>e.metadata?.trustee||e.metadata?.manager||e.ein) ? `
+  <div class="section-title">Additional Details</div>
+  <table>
+    <thead>
+      <tr><th>Entity</th><th>Established</th><th>Key Role</th><th>Annual Report</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      ${entities.map((e:any) => `
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-weight:600;font-size:13px;">${e.name}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.est_date ? new Date(e.est_date).getFullYear() : '—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.metadata?.trustee||e.metadata?.manager||e.metadata?.gp||'—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.metadata?.annual_report||'—'}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e8ecf0;font-size:12px;color:#555;">${e.metadata?.members||e.metadata?.lp||e.metadata?.successor_trustee||''}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>` : ''}
+
+  <div class="footer">
+    <span>Generated by Axion Estate Platform · axion-app-nine.vercel.app</span>
+    <span>This report is confidential and intended for the named individual only.</span>
+  </div>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    if (win) {
+      win.document.write(html)
+      win.document.close()
+    }
+  }
+
   const roots = entities.filter((e: any) => !e.parent_name || !entities.find((p: any) => p.name === e.parent_name))
   const typeSummary = [...new Set(entities.map((e: any) => e.type.split(' ')[0]))].slice(0,4).join(' · ')
 
@@ -309,7 +490,7 @@ export default function EntitiesPage() {
               <div style={{ fontSize:'28px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif", lineHeight:1 }}>Ownership Tree</div>
             </div>
             <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-              <button onClick={() => window.print()} style={{ padding:'8px 16px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'8px', color:'#e8eaf6', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Export PDF</button>
+              <button onClick={exportPDF} style={{ padding:'8px 16px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'8px', color:'#e8eaf6', fontSize:'13px', fontWeight:600, cursor:'pointer' }}>Export PDF</button>
               <button onClick={() => setShowForm(!showForm)} style={{ padding:'8px 18px', background:'linear-gradient(135deg,#0055ff,#00aaff)', border:'none', borderRadius:'8px', color:'#fff', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>+ Add Entity</button>
             </div>
           </div>
