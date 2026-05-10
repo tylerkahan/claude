@@ -64,12 +64,12 @@ function AssetLeaf({ asset }: { asset: any }) {
   const cat = ASSET_TC[asset.category] || { text:'#6b7ab8', label:(asset.category||'ASSET').toUpperCase() }
   const equity = (asset.value||0) - (asset.mortgage||0)
   return (
-    <div style={{ width:'156px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'10px', padding:'12px 14px', flexShrink:0, textAlign:'center' }}>
-      <div style={{ marginBottom:'6px' }}>
-        <span style={{ fontSize:'9px', fontWeight:800, letterSpacing:'0.07em', padding:'2px 7px', borderRadius:'4px', background:`${cat.text}18`, color:cat.text, border:`1px solid ${cat.text}44` }}>{cat.label}</span>
+    <div style={{ width:'130px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'10px 12px', flexShrink:0, textAlign:'center' }}>
+      <div style={{ marginBottom:'5px' }}>
+        <span style={{ fontSize:'8px', fontWeight:800, letterSpacing:'0.07em', padding:'2px 6px', borderRadius:'3px', background:`${cat.text}18`, color:cat.text, border:`1px solid ${cat.text}44` }}>{cat.label}</span>
       </div>
-      <div style={{ fontSize:'12px', fontWeight:700, color:'#e8eaf6', lineHeight:1.3, marginBottom:'4px' }}>{asset.name}</div>
-      <div style={{ fontSize:'13px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif" }}>{fmt(equity)}</div>
+      <div style={{ fontSize:'11px', fontWeight:700, color:'#e8eaf6', lineHeight:1.3, marginBottom:'3px' }}>{asset.name}</div>
+      <div style={{ fontSize:'12px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif" }}>{fmt(equity)}</div>
     </div>
   )
 }
@@ -79,19 +79,19 @@ function TreeCard({ entity, entityValueMap }: { entity:any; entityValueMap:Recor
   const ev = entityValueMap[entity.name]
   const meta = entity.metadata || {}
   return (
-    <div style={{ width:'210px', background:c.bg, border:`1px solid ${c.border}`, borderRadius:'12px', padding:'14px 16px', boxShadow:c.glow, flexShrink:0, textAlign:'center' }}>
-      <div style={{ marginBottom:'8px' }}>
-        <span style={{ fontSize:'9px', fontWeight:800, letterSpacing:'0.08em', padding:'3px 9px', borderRadius:'4px', background:`${c.border}44`, color:c.text, border:`1px solid ${c.border}88` }}>{c.label}</span>
+    <div style={{ width:'168px', background:c.bg, border:`1px solid ${c.border}`, borderRadius:'10px', padding:'11px 13px', boxShadow:c.glow, flexShrink:0, textAlign:'center' }}>
+      <div style={{ marginBottom:'6px' }}>
+        <span style={{ fontSize:'8px', fontWeight:800, letterSpacing:'0.08em', padding:'2px 7px', borderRadius:'3px', background:`${c.border}44`, color:c.text, border:`1px solid ${c.border}88` }}>{c.label}</span>
       </div>
-      <div style={{ fontSize:'14px', fontWeight:700, color:'#fff', lineHeight:1.3, marginBottom:meta.ownership_display?'6px':'4px' }}>{entity.name}</div>
+      <div style={{ fontSize:'12px', fontWeight:700, color:'#fff', lineHeight:1.3, marginBottom:meta.ownership_display?'5px':'3px' }}>{entity.name}</div>
       {meta.ownership_display && (
-        <div style={{ fontSize:'12px', fontWeight:700, color:c.text, marginBottom:'6px' }}>{meta.ownership_display}</div>
+        <div style={{ fontSize:'11px', fontWeight:700, color:c.text, marginBottom:'4px' }}>{meta.ownership_display}</div>
       )}
-      <div style={{ fontSize:'11px', color:'#6b7ab8' }}>
+      <div style={{ fontSize:'10px', color:'#6b7ab8' }}>
         {[fmtShort(entity.est_date), entity.state, entity.ein ? `EIN ${maskEIN(entity.ein)}` : null].filter(Boolean).join(' · ')}
       </div>
       {ev && ev.value > 0 && (
-        <div style={{ marginTop:'8px', fontSize:'13px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif" }}>{fmt(ev.value)}</div>
+        <div style={{ marginTop:'6px', fontSize:'12px', fontWeight:800, color:'#fff', fontFamily:"'Space Grotesk',sans-serif" }}>{fmt(ev.value)}</div>
       )}
     </div>
   )
@@ -349,7 +349,7 @@ export default function EntitiesPage() {
           )}
 
           {/* ── Tree container ── */}
-          <div style={{ background:'rgba(5,9,28,0.95)', border:'1px solid rgba(0,100,255,0.14)', borderRadius:'20px', padding:'48px 40px 56px', marginBottom:'32px', overflowX:'auto' }}>
+          <div style={{ background:'rgba(5,9,28,0.95)', border:'1px solid rgba(0,100,255,0.14)', borderRadius:'20px', padding:'32px 24px 40px', marginBottom:'32px', overflowX:'auto' }}>
             {entities.length === 0 ? (
               <div style={{ textAlign:'center', padding:'60px 40px', color:'#6b7ab8' }}>
                 <div style={{ fontSize:'36px', marginBottom:'12px' }}>🌳</div>
@@ -360,12 +360,12 @@ export default function EntitiesPage() {
             ) : (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', minWidth:'fit-content', margin:'0 auto' }}>
                 {/* Grantor node */}
-                <div style={{ width:'260px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'14px', padding:'18px 20px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
-                  <div style={{ marginBottom:'10px' }}>
-                    <span style={{ fontSize:'9px', fontWeight:800, letterSpacing:'0.1em', padding:'3px 10px', borderRadius:'4px', background:'rgba(0,170,255,0.15)', color:'#00aaff', border:'1px solid rgba(0,170,255,0.45)' }}>GRANTOR</span>
+                <div style={{ width:'200px', background:GRANTOR_C.bg, border:`1px solid ${GRANTOR_C.border}`, borderRadius:'11px', padding:'13px 16px', boxShadow:GRANTOR_C.glow, textAlign:'center' }}>
+                  <div style={{ marginBottom:'7px' }}>
+                    <span style={{ fontSize:'8px', fontWeight:800, letterSpacing:'0.1em', padding:'2px 8px', borderRadius:'3px', background:'rgba(0,170,255,0.15)', color:'#00aaff', border:'1px solid rgba(0,170,255,0.45)' }}>GRANTOR</span>
                   </div>
-                  <div style={{ fontSize:'20px', fontWeight:800, color:'#fff', marginBottom:'4px', fontFamily:"'Space Grotesk',sans-serif" }}>{profile?.full_name || user?.email?.split('@')[0] || 'You'}</div>
-                  <div style={{ fontSize:'12px', color:'#6b7ab8' }}>Individual{profile?.state ? ` · ${profile.state}` : ''}</div>
+                  <div style={{ fontSize:'15px', fontWeight:800, color:'#fff', marginBottom:'3px', fontFamily:"'Space Grotesk',sans-serif" }}>{profile?.full_name || user?.email?.split('@')[0] || 'You'}</div>
+                  <div style={{ fontSize:'11px', color:'#6b7ab8' }}>Individual{profile?.state ? ` · ${profile.state}` : ''}</div>
                 </div>
 
                 <div className="tree-line-down" />

@@ -38,15 +38,15 @@ input, button, select, textarea { font-family: inherit; }
 
 /* ── Entity Tree ── */
 .tree-node { display: flex; flex-direction: column; align-items: center; }
-.tree-line-down { width: 2px; height: 28px; background: rgba(0,100,255,0.4); flex-shrink: 0; }
+.tree-line-down { width: 2px; height: 20px; background: rgba(0,100,255,0.4); flex-shrink: 0; }
 .tree-children { display: flex; align-items: flex-start; }
-.tree-child-wrap { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 24px; }
+.tree-child-wrap { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 12px; }
 .tree-child-wrap::before { content: ''; position: absolute; top: 0; height: 2px; background: rgba(0,100,255,0.4); left: 0; right: 0; }
 .tree-child-wrap.first::before { left: 50%; }
 .tree-child-wrap.last::before  { right: 50%; }
 .tree-child-wrap.only::before  { display: none; }
-.tree-drop { width: 2px; height: 44px; background: rgba(0,100,255,0.4); position: relative; flex-shrink: 0; }
-.tree-pct { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 700; color: #00aaff; white-space: nowrap; background: #03040d; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(0,170,255,0.35); }
+.tree-drop { width: 2px; height: 28px; background: rgba(0,100,255,0.4); position: relative; flex-shrink: 0; }
+.tree-pct { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 700; color: #00aaff; white-space: nowrap; background: #03040d; padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(0,170,255,0.35); }
 
 @media (max-width: 768px) {
   .ax-stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; margin-bottom: 14px !important; }
