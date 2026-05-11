@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://axion-app-nine.vercel.app'
+    const siteUrl = 'https://axion-app-nine.vercel.app'
 
     const { error } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${siteUrl}/beneficiary`,
