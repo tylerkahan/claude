@@ -119,7 +119,7 @@ export default function CompliancePage() {
           {/* Score cards */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'24px' }}>
             <div style={{ background:'rgba(8,14,40,0.8)', border:'1px solid rgba(0,100,255,0.2)', borderRadius:'16px', padding:'24px', textAlign:'center' }}>
-              <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'48px', fontWeight:800, background: score >= 80 ? 'linear-gradient(135deg,#00cc66,#00aaff)' : score >= 50 ? 'linear-gradient(135deg,#ffaa00,#ff6688)' : 'linear-gradient(135deg,#ff6688,#ff4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+              <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'48px', fontWeight:800, color: score >= 80 ? '#00cc66' : score >= 50 ? '#ffaa00' : '#ff6688' }}>
                 {score}%
               </div>
               <div style={{ fontSize:'12px', color:'#6b7ab8', fontWeight:600, letterSpacing:'.1em', textTransform:'uppercase', marginTop:'4px' }}>Estate Score</div>
