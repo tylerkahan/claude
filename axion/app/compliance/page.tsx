@@ -52,6 +52,8 @@ export default function CompliancePage() {
         }
       }
       setLoading(false)
+      // Auto-scan on every page load
+      runScan()
     }
     load()
   }, [router])
@@ -101,33 +103,18 @@ export default function CompliancePage() {
           <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:'16px', fontWeight:700, color:'#fff' }}>Compliance</span>
           <span style={{ fontSize:'12px', color:'#6b7ab8' }}>Estate readiness checklist</span>
           <div style={{ flex:1 }} />
-          {lastScanned && !scanning && (
-            <span style={{ fontSize:'11px', color:'#3d4a7a' }}>Last scanned {new Date(lastScanned).toLocaleDateString()}</span>
+          {scanning && (
+            <span style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', color:'#6b7ab8' }}>
+              <span style={{ display:'inline-block', width:'10px', height:'10px', border:'2px solid rgba(0,170,255,0.3)', borderTopColor:'#00aaff', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+              Scanning…
+            </span>
           )}
-          <button
-            onClick={runScan}
-            disabled={scanning}
-            style={{ display:'flex', alignItems:'center', gap:'7px', padding:'7px 16px', background: scanning ? 'rgba(0,100,255,0.1)' : 'linear-gradient(135deg,#0055ff,#00aaff)', border:'none', borderRadius:'8px', color:'#fff', fontSize:'13px', fontWeight:700, cursor: scanning ? 'not-allowed' : 'pointer', opacity: scanning ? 0.8 : 1, whiteSpace:'nowrap' }}>
-            {scanning
-              ? <><span style={{ display:'inline-block', width:'12px', height:'12px', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Scanning...</>
-              : '🤖 AI Scan Account'}
-          </button>
         </div>
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
         <div style={{ flex:1, overflowY:'auto', padding:'24px 28px' }}>
 
-          {/* Scan banner */}
-          {scanning && (
-            <div style={{ background:'rgba(0,85,255,0.07)', border:'1px solid rgba(0,100,255,0.25)', borderRadius:'14px', padding:'16px 20px', marginBottom:'20px', display:'flex', alignItems:'center', gap:'14px' }}>
-              <span style={{ display:'inline-block', width:'16px', height:'16px', border:'2px solid rgba(0,170,255,0.3)', borderTopColor:'#00aaff', borderRadius:'50%', animation:'spin 0.8s linear infinite', flexShrink:0 }} />
-              <div>
-                <div style={{ fontSize:'14px', fontWeight:600, color:'#fff' }}>AI is scanning your account...</div>
-                <div style={{ fontSize:'12px', color:'#6b7ab8', marginTop:'2px' }}>Reading your documents, beneficiaries, entities, and digital assets to auto-check your estate readiness.</div>
-              </div>
-            </div>
-          )}
 
           {/* Score cards */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'24px' }}>
@@ -215,19 +202,6 @@ export default function CompliancePage() {
             ))}
           </div>
 
-          {/* First scan prompt */}
-          {Object.keys(actionSteps).length === 0 && !scanning && (
-            <div style={{ marginTop:'24px', padding:'24px', background:'rgba(0,85,255,0.04)', border:'1px dashed rgba(0,100,255,0.22)', borderRadius:'14px', textAlign:'center' }}>
-              <div style={{ fontSize:'28px', marginBottom:'10px' }}>🤖</div>
-              <div style={{ fontSize:'14px', fontWeight:600, color:'#fff', marginBottom:'6px' }}>Let AI scan your account</div>
-              <div style={{ fontSize:'13px', color:'#6b7ab8', marginBottom:'16px', maxWidth:'400px', margin:'0 auto 16px' }}>
-                Automatically checks your documents, beneficiaries, entities, and digital assets — then tells you exactly what's missing and how to fix it.
-              </div>
-              <button onClick={runScan} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#0055ff,#00aaff)', border:'none', borderRadius:'8px', color:'#fff', fontSize:'13px', fontWeight:700, cursor:'pointer' }}>
-                Run AI Scan
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
