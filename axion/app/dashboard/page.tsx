@@ -43,9 +43,10 @@ export default async function DashboardPage() {
   const docCount = documents?.length ?? 0
   const beneficiaryCount = beneficiaries?.length ?? 0
 
-  const CHECKLIST_TOTAL = 12
-  const checkedCount = compliance?.filter((c: any) => c.completed).length ?? 0
-  const score = Math.round((checkedCount / CHECKLIST_TOTAL) * 100)
+  const VALID_CHECK_IDS = new Set(['will','poa','healthcare','trust','beneficiaries','life_insurance','digital','property','tax','contacts','funeral','review'])
+  const CHECKLIST_TOTAL = VALID_CHECK_IDS.size
+  const checkedCount = compliance?.filter((c: any) => c.completed && VALID_CHECK_IDS.has(c.check_id)).length ?? 0
+  const score = Math.min(100, Math.round((checkedCount / CHECKLIST_TOTAL) * 100))
 
   // Build unified allocation from both manual assets and connected account balances
   const allocationMap: Record<string, number> = {}
