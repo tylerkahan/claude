@@ -85,3 +85,24 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_firm  text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_email text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_phone text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS attorney_notes text;
+
+-- ── audit_logs ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  action     text NOT NULL,
+  resource   text,
+  details    jsonb,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='audit_logs' AND policyname='users view own audit logs') THEN
+    CREATE POLICY "users view own audit logs" ON audit_logs FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='audit_logs' AND policyname='service insert audit logs') THEN
+    CREATE POLICY "service insert audit logs" ON audit_logs FOR INSERT WITH CHECK (true);
+  END IF;
+END $$;

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import SessionGuard from '@/components/SessionGuard'
 
 const NAV_SECTIONS = [
   {
@@ -70,6 +71,8 @@ export default function Sidebar({ email }: { email: string }) {
   const name = email ? email.split('@')[0] : 'User'
 
   const sidebarContent = (
+    <>
+    <SessionGuard />
     <div style={{
       width: '220px', flexShrink: 0, height: '100%',
       background: 'rgba(6,10,32,0.99)', borderRight: '1px solid rgba(0,100,255,0.12)',
@@ -132,6 +135,7 @@ export default function Sidebar({ email }: { email: string }) {
         <button onClick={signOut} style={{ width: '100%', marginTop: '6px', padding: '6px', background: 'transparent', border: '1px solid rgba(255,60,60,0.15)', borderRadius: '8px', color: '#ff6666', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>Sign Out</button>
       </div>
     </div>
+    </>
   )
 
   if (isMobile) {

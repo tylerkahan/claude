@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rateLimit'
+import { logAudit } from '@/lib/audit'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -11,6 +13,9 @@ export async function POST() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { allowed } = rateLimit(user.id, 10, 60_000)
+    if (!allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     // Fetch all account data in parallel
     const [
@@ -143,6 +148,8 @@ Be concise and direct. Reference the user's name (${accountSummary.name}) and sp
       updated_at: new Date().toISOString(),
     }))
     await supabase.from('compliance_checks').upsert(upsertRows, { onConflict: 'user_id,check_id' })
+
+    await logAudit(supabase, user.id, 'compliance_scan')
 
     return NextResponse.json({ completed: autoDetected, actionSteps })
   } catch (e: any) {

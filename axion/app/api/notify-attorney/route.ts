@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
+import { rateLimit } from '@/lib/rateLimit'
+import { logAudit } from '@/lib/audit'
 
 const SITE_URL = 'https://axion-app-nine.vercel.app'
 
@@ -9,6 +11,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { allowed } = rateLimit(user.id, 3, 60_000)
+    if (!allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
 
     const { attorney_name, attorney_email, attorney_firm, grantor_name } = await req.json()
     if (!attorney_email) return NextResponse.json({ error: 'No attorney email provided' }, { status: 400 })
@@ -124,6 +129,8 @@ export async function POST(req: NextRequest) {
 </html>
       `,
     })
+
+    await logAudit(supabase, user.id, 'attorney_designated', attorney_email)
 
     return NextResponse.json({ success: true })
   } catch (e: any) {

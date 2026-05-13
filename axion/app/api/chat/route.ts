@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { buildRecommendations, buildAIContext } from '@/lib/recommendations'
+import { rateLimit } from '@/lib/rateLimit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { messages } = await req.json()
+
+    if (user) {
+      const { allowed } = rateLimit(user.id, 20, 60_000)
+      if (!allowed) return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
 
     // Build personalized context from user's actual data
     let userContext = ''
