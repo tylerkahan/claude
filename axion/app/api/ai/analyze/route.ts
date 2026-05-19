@@ -103,7 +103,7 @@ Scoring:
 Generate 4-8 insights ordered by severity. Reference their real asset names, dollar amounts, and people by name. For sparse profiles, focus on the most impactful first steps.`
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-opus-4-5',
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     })
