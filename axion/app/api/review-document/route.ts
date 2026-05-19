@@ -69,13 +69,18 @@ Return only valid JSON. No markdown, no code blocks, no commentary.`
     })
 
     const rawText = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}'
-    // Strip markdown code fences if present
-    const jsonText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    // Extract JSON by finding first { and last } — robust to any surrounding text/markdown
+    const firstBrace = rawText.indexOf('{')
+    const lastBrace = rawText.lastIndexOf('}')
+    const jsonText = firstBrace >= 0 && lastBrace > firstBrace
+      ? rawText.slice(firstBrace, lastBrace + 1)
+      : rawText
 
     let review: any
     try {
       review = JSON.parse(jsonText)
-    } catch {
+    } catch (parseErr) {
+      console.error('review-document JSON parse failed. Raw response:', rawText.slice(0, 500))
       review = {
         score: 70,
         issues: [{ severity: 'warning', title: 'Review incomplete', detail: 'Could not fully analyze this document. Please try again.' }],
