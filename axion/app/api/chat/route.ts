@@ -86,7 +86,7 @@ Always note that responses are informational, not legal advice, and recommend co
       : `You are Axion AI, an expert estate planning advisor. Help users understand estate planning concepts including wills, trusts, beneficiaries, powers of attorney, healthcare directives, estate taxes, probate, and digital asset planning. Be concise and practical. Always note that responses are informational, not legal advice.`
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-opus-4-7',
       max_tokens: 1024,
       system: systemPrompt,
       messages: messages.map((m: any) => ({

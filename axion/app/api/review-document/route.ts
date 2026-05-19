@@ -63,7 +63,7 @@ Severity: "critical" = must fix, "warning" = should fix, "info" = suggestion.
 Return only valid JSON. No markdown, no code blocks, no commentary.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-opus-4-7',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     })

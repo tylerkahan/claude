@@ -114,7 +114,7 @@ Instructions:
 Generate the complete document text only. No commentary before or after.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-opus-4-7',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     })

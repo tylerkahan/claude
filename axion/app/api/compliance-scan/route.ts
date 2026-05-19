@@ -113,7 +113,7 @@ Be concise and direct. Reference the user's name (${accountSummary.name}) and sp
     if (incompleteItems.length > 0) {
       try {
         const response = await anthropic.messages.create({
-          model: 'claude-opus-4-5',
+          model: 'claude-opus-4-7',
           max_tokens: 1200,
           messages: [{ role: 'user', content: prompt }],
         })
