@@ -77,6 +77,33 @@ ALTER TABLE digital_assets ADD COLUMN IF NOT EXISTS password text;
 
 -- ── beneficiary invite tracking ──────────────────────────────
 ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS invite_status text DEFAULT 'not_invited';
+
+-- ── legal_documents ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS legal_documents (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  type                text NOT NULL,
+  title               text NOT NULL,
+  content             text NOT NULL DEFAULT '',
+  status              text NOT NULL DEFAULT 'draft',
+  state               text,
+  ai_review           jsonb,
+  attorney_notes      text,
+  attorney_approved_at timestamptz,
+  notary_scheduled_at  timestamptz,
+  notary_notes        text,
+  notary_approved_at  timestamptz,
+  finalized_at        timestamptz,
+  created_at          timestamptz DEFAULT now(),
+  updated_at          timestamptz DEFAULT now()
+);
+ALTER TABLE legal_documents ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='legal_documents' AND policyname='users manage own legal documents') THEN
+    CREATE POLICY "users manage own legal documents" ON legal_documents
+      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS invite_sent_at timestamptz;
 
 -- ── estate transfer / attorney contact on profiles ───────────
