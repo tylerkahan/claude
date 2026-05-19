@@ -48,6 +48,9 @@ export default function DocumentEditorPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
+  const [attorneyOnFile, setAttorneyOnFile] = useState<{ name: string | null; email: string | null; firm: string | null } | null>(null)
+  const [submitTarget, setSubmitTarget] = useState<'user_attorney' | 'axion_attorney'>('user_attorney')
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
   const [showNotaryModal, setShowNotaryModal] = useState(false)
   const [notaryNotes, setNotaryNotes] = useState('')
   const [schedulingNotary, setSchedulingNotary] = useState(false)
@@ -79,6 +82,14 @@ export default function DocumentEditorPage() {
       setContent(data.content ?? '')
       setTitle(data.title ?? '')
       if (data.ai_review) setReview(data.ai_review as ReviewData)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('attorney_name, attorney_email, attorney_firm')
+        .eq('id', user.id)
+        .single()
+      setAttorneyOnFile(profile ? { name: profile.attorney_name, email: profile.attorney_email, firm: profile.attorney_firm } : null)
+
       setLoading(false)
     }
     load()
@@ -137,21 +148,30 @@ export default function DocumentEditorPage() {
 
   async function handleSubmit() {
     setSubmitting(true)
-    const supabase = createClient()
-    const { data: updated } = await supabase
-      .from('legal_documents')
-      .update({ status: 'submitted', updated_at: new Date().toISOString() })
-      .eq('id', docId)
-      .eq('user_id', user.id)
-      .select()
-      .single()
-    if (updated) {
-      setDocument(updated)
-    } else {
-      setDocument((prev: any) => ({ ...prev, status: 'submitted' }))
+    setSubmitMessage(null)
+    try {
+      const res = await fetch('/api/submit-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docId, target: submitTarget }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSubmitMessage(data.error || 'Failed to submit')
+        setSubmitting(false)
+        return
+      }
+      setDocument((prev: any) => ({
+        ...prev,
+        status: 'submitted',
+        submitted_to_name: data.attorney_name ?? prev?.submitted_to_name,
+        submitted_to_email: data.attorney_email ?? prev?.submitted_to_email,
+      }))
+      setShowSubmitConfirm(false)
+    } catch (e: any) {
+      setSubmitMessage(e.message)
     }
     setSubmitting(false)
-    setShowSubmitConfirm(false)
   }
 
   async function handleScheduleNotary() {
@@ -362,7 +382,9 @@ export default function DocumentEditorPage() {
                     })}
                   </div>
                   <div style={{ color: '#6b7ab8', fontSize: '12px', marginTop: '8px' }}>
-                    Your estate attorney will review and respond within 2–3 business days.
+                    {document?.submitted_to_name
+                      ? `Sent to ${document.submitted_to_name} — they'll review and respond.`
+                      : 'Your estate attorney will review and respond within 2–3 business days.'}
                   </div>
                 </div>
               )}
@@ -517,32 +539,174 @@ export default function DocumentEditorPage() {
         </div>
       </div>
 
-      {/* Submit Confirm Modal */}
-      {showSubmitConfirm && (
+      {/* Submit Chooser Modal */}
+      {showSubmitConfirm && (() => {
+        const hasAttorney = !!attorneyOnFile?.email
+        const userCardSelected = submitTarget === 'user_attorney' && hasAttorney
+        const confirmDisabled = submitting || !hasAttorney || submitTarget !== 'user_attorney'
+        const docTypeLabel = DOC_TYPE_LABELS[document?.type] ?? 'document'
+        return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div style={{ background: '#08111f', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '420px' }}>
-            <h3 style={{ color: '#e8eaf6', fontSize: '16px', fontWeight: 700, margin: '0 0 12px', fontFamily: "'Space Grotesk', sans-serif" }}>
-              Submit for Attorney Review?
+          <div style={{ background: '#08111f', border: '1px solid rgba(0,100,255,0.2)', borderRadius: '14px', padding: '28px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ color: '#e8eaf6', fontSize: '18px', fontWeight: 700, margin: '0 0 6px', fontFamily: "'Space Grotesk', sans-serif" }}>
+              Send for review
             </h3>
+            <p style={{ color: '#6b7ab8', fontSize: '13px', margin: '0 0 18px', lineHeight: 1.5 }}>
+              Choose who will review your {docTypeLabel} draft.
+            </p>
+
             {hasCriticalIssues && (
               <div style={{ background: 'rgba(255,96,96,0.1)', border: '1px solid rgba(255,96,96,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', color: '#ff9090', fontSize: '12px' }}>
                 ⚠️ Your document has critical issues. An attorney will identify these, but consider running AI Review first to fix them yourself.
               </div>
             )}
-            <p style={{ color: '#6b7ab8', fontSize: '13px', margin: '0 0 20px', lineHeight: 1.5 }}>
-              This will submit your {DOC_TYPE_LABELS[document?.type] ?? 'document'} for attorney review. Your attorney will be notified to begin their review.
-            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
+              {/* Card 1: User attorney */}
+              <div
+                onClick={() => {
+                  if (!hasAttorney) return
+                  setSubmitTarget('user_attorney')
+                  setSubmitMessage(null)
+                }}
+                style={{
+                  padding: '16px 18px',
+                  border: `2px solid ${userCardSelected ? '#00aaff' : 'rgba(0,100,255,0.15)'}`,
+                  borderRadius: '12px',
+                  cursor: hasAttorney ? 'pointer' : 'not-allowed',
+                  background: userCardSelected ? 'rgba(0,170,255,0.06)' : 'rgba(8,14,40,0.6)',
+                  opacity: hasAttorney ? 1 : 0.55,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '10px',
+                    background: 'rgba(136,102,255,0.15)', border: '1px solid rgba(136,102,255,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '22px', flexShrink: 0,
+                  }}>⚖️</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {hasAttorney ? (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ color: '#e8eaf6', fontSize: '14px', fontWeight: 700 }}>
+                            {attorneyOnFile?.name || 'Your Attorney'}
+                          </span>
+                          <span style={{
+                            background: 'rgba(0,204,102,0.12)', border: '1px solid rgba(0,204,102,0.3)',
+                            color: '#00cc66', fontSize: '10px', fontWeight: 700,
+                            padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                          }}>On file</span>
+                        </div>
+                        <div style={{ color: '#9aa3c8', fontSize: '12px', marginBottom: '2px' }}>
+                          {attorneyOnFile?.firm || 'Designated Estate Attorney'}
+                        </div>
+                        <div style={{ color: '#6b7ab8', fontSize: '12px' }}>{attorneyOnFile?.email}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ color: '#e8eaf6', fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
+                          No attorney on file
+                        </div>
+                        <div style={{ color: '#9aa3c8', fontSize: '12px', marginBottom: '6px' }}>
+                          Designate one on the Attorney Connect page first.
+                        </div>
+                        <a
+                          href="/attorney"
+                          onClick={e => e.stopPropagation()}
+                          style={{ color: '#00aaff', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+                        >
+                          Set up →
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Axion AI Attorney (locked) */}
+              <div
+                onClick={() => {
+                  setSubmitMessage('Axion AI Attorney is a Pro feature launching soon.')
+                }}
+                style={{
+                  padding: '16px 18px',
+                  border: '2px solid rgba(0,100,255,0.15)',
+                  borderRadius: '12px',
+                  cursor: 'not-allowed',
+                  background: 'rgba(8,14,40,0.4)',
+                  position: 'relative',
+                  opacity: 0.85,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '10px',
+                    background: 'linear-gradient(135deg,#0055ff,#00aaff)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '22px', flexShrink: 0,
+                  }}>🤖</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                      <span style={{ color: '#e8eaf6', fontSize: '14px', fontWeight: 700 }}>
+                        Axion AI Attorney
+                      </span>
+                      <span style={{
+                        background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.3)',
+                        color: '#ffaa00', fontSize: '10px', fontWeight: 700,
+                        padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                      }}>Pro Feature</span>
+                    </div>
+                    <div style={{ color: '#9aa3c8', fontSize: '12px', marginBottom: '4px' }}>
+                      AI-powered legal review with same-day turnaround
+                    </div>
+                    <div style={{ color: '#00aaff', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>$100 per review</div>
+                    <div style={{
+                      background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.2)',
+                      borderRadius: '6px', padding: '6px 10px',
+                      color: '#ffaa00', fontSize: '11px', fontWeight: 600,
+                    }}>🔒 Available with Pro subscription (coming soon)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {submitMessage && (
+              <div style={{
+                background: 'rgba(255,170,0,0.1)', border: '1px solid rgba(255,170,0,0.3)',
+                borderRadius: '8px', padding: '10px 14px', marginBottom: '14px',
+                color: '#ffaa00', fontSize: '12px',
+              }}>
+                {submitMessage}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowSubmitConfirm(false)} style={{ background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', color: '#6b7ab8', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', cursor: 'pointer' }}>
+              <button
+                onClick={() => { setShowSubmitConfirm(false); setSubmitMessage(null) }}
+                style={{ background: 'transparent', border: '1px solid rgba(0,100,255,0.2)', color: '#6b7ab8', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', cursor: 'pointer' }}
+              >
                 Cancel
               </button>
-              <button onClick={handleSubmit} disabled={submitting} style={{ background: 'linear-gradient(135deg, #0055ff, #00aaff)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              <button
+                onClick={handleSubmit}
+                disabled={confirmDisabled}
+                style={{
+                  background: 'linear-gradient(135deg, #0055ff, #00aaff)',
+                  color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px',
+                  fontSize: '13px', fontWeight: 600,
+                  cursor: confirmDisabled ? 'not-allowed' : 'pointer',
+                  opacity: confirmDisabled ? 0.5 : 1,
+                }}
+              >
                 {submitting ? 'Submitting...' : 'Confirm Submit'}
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Notary Modal */}
       {showNotaryModal && (

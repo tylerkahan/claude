@@ -133,3 +133,11 @@ DO $$ BEGIN
     CREATE POLICY "service insert audit logs" ON audit_logs FOR INSERT WITH CHECK (true);
   END IF;
 END $$;
+
+-- ── legal_documents: attorney submission tracking ────────────
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS submission_token  text;
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS submission_target text; -- 'user_attorney' | 'axion_attorney'
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS submitted_to_email text;
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS submitted_to_name  text;
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS submitted_at       timestamptz;
+CREATE INDEX IF NOT EXISTS legal_documents_submission_token_idx ON legal_documents (submission_token);
