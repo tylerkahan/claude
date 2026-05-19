@@ -11,14 +11,6 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   advance_directive: 'Advance Directive (DNR)',
 }
 
-interface ReviewData {
-  score: number
-  issues: Array<{ severity: string; title: string; detail: string }>
-  covered_assets: string[]
-  missing_assets: string[]
-  summary: string
-}
-
 export default function AttorneyPortalPage() {
   const params = useParams()
   const token = params?.token as string
@@ -159,7 +151,6 @@ export default function AttorneyPortalPage() {
   }
 
   const docTypeLabel = DOC_TYPE_LABELS[doc.type] ?? 'Legal Document'
-  const review: ReviewData | null = doc.ai_review ?? null
   const submittedDate = doc.submitted_at ? new Date(doc.submitted_at).toLocaleDateString() : '—'
 
   // Final confirmation state
@@ -267,45 +258,6 @@ export default function AttorneyPortalPage() {
               <InfoRow label="State" value={grantor.state || '—'} />
               <InfoRow label="Submitted" value={submittedDate} last />
             </div>
-
-            {/* AI Review (read-only) */}
-            {review && (
-              <div style={{
-                background: 'rgba(8,14,40,0.8)', border: '1px solid rgba(0,100,255,0.15)',
-                borderRadius: '12px', padding: '16px 18px',
-              }}>
-                <div style={{ color: '#e8eaf6', fontSize: '12px', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  AI Pre-Review
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-                  <div style={{
-                    width: '54px', height: '54px', borderRadius: '50%', flexShrink: 0,
-                    background: `conic-gradient(${review.score >= 80 ? '#00cc66' : review.score >= 60 ? '#ffaa00' : '#ff6060'} ${review.score * 3.6}deg, rgba(0,100,255,0.1) 0deg)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#08111f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ color: '#e8eaf6', fontSize: '13px', fontWeight: 700 }}>{review.score}</span>
-                    </div>
-                  </div>
-                  <div style={{ color: '#9aa3c8', fontSize: '12px', lineHeight: 1.5 }}>{review.summary}</div>
-                </div>
-                {review.issues?.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {review.issues.map((issue, i) => {
-                      const color = issue.severity === 'critical' ? '#ff6060' : issue.severity === 'warning' ? '#ffaa00' : '#00aaff'
-                      return (
-                        <div key={i} style={{ background: color + '11', border: '1px solid ' + color + '33', borderRadius: '8px', padding: '8px 10px' }}>
-                          <div style={{ color, fontSize: '11px', fontWeight: 600, marginBottom: '2px' }}>
-                            {issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : '🔵'} {issue.title}
-                          </div>
-                          <div style={{ color: '#9ba3c8', fontSize: '11px', lineHeight: 1.4 }}>{issue.detail}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Notes */}
             <div style={{

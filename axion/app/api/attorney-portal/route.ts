@@ -49,8 +49,12 @@ export async function GET(req: NextRequest) {
       grantorEmail = userData?.user?.email ?? null
     } catch {}
 
+    // Strip ai_review from response — attorney should review independently
+    const { ai_review, ...documentForAttorney } = document as any
+    void ai_review
+
     return NextResponse.json({
-      document,
+      document: documentForAttorney,
       grantor: {
         name: profile?.full_name || 'Client',
         state: profile?.state || null,
