@@ -19,7 +19,11 @@ export default function LoginPage() {
     const supabase = createClient()
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: 'https://axion-app-nine.vercel.app/onboarding' },
+      })
       if (error) setError(error.message)
       else setMessage('Check your email to confirm your account.')
     } else {
